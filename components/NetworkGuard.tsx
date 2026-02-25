@@ -7,28 +7,41 @@ interface NetworkGuardProps {
 }
 
 export const NetworkGuard: React.FC<NetworkGuardProps> = ({ children }) => {
-  const [status, setStatus] = useState<'scanning' | 'denied' | 'granted'>('scanning');
-  const [detectedNetwork, setDetectedNetwork] = useState<string | null>(null);
+  const [status, setStatus] = useState<'scanning' | 'denied' | 'success' | 'granted'>('scanning');
+  const [detectedNetwork, setDetectedNetwork] = useState<{ name: string; routerIp: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const [currentIp, setCurrentIp] = useState<string | null>(null);
 
   const verifyNetwork = async () => {
     setStatus('scanning');
     setError(null);
     
-    // Simulate a network handshake/verification process
-    // In a real browser, we can't get SSID, so we simulate the "detection" 
-    // for the sake of the demo's functional flow.
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    try {
+      // Fetch public IP
+      const response = await fetch('https://api.ipify.org?format=json');
+      const data = await response.json();
+      const ip = data.ip;
+      setCurrentIp(ip);
 
-    // For the demo, we'll check if we've "remembered" a network or if we should prompt
-    const savedNetwork = localStorage.getItem('verified_network');
-    
-    if (savedNetwork && ALLOWED_WIFI.some(w => w.name === savedNetwork)) {
-      setDetectedNetwork(savedNetwork);
-      setStatus('granted');
-    } else {
-      // If not saved, we "fail" the automatic scan and ask for manual verification
-      // (This is where the "functional" part comes in - the user must prove they are on the right network)
+      const allowed = ALLOWED_WIFI.find(w => w.publicIp === ip);
+      
+      if (allowed) {
+        setDetectedNetwork({ name: allowed.name, routerIp: allowed.routerIp });
+        setStatus('success');
+        localStorage.setItem('verified_network', allowed.name);
+        
+        // Brief delay to show success message before granting access
+        setTimeout(() => {
+            setStatus('granted');
+        }, 2000);
+      } else {
+        setStatus('denied');
+        localStorage.removeItem('verified_network');
+      }
+    } catch (err) {
+      console.error("Failed to fetch IP:", err);
+      setError("Unable to verify network connection. Please check your internet.");
       setStatus('denied');
     }
   };
@@ -36,14 +49,6 @@ export const NetworkGuard: React.FC<NetworkGuardProps> = ({ children }) => {
   useEffect(() => {
     verifyNetwork();
   }, []);
-
-  const handleManualVerify = (networkName: string) => {
-    // This simulates the user confirming they are on the specific WiFi
-    // In a real production app, this would be handled by a backend check of the client's IP
-    localStorage.setItem('verified_network', networkName);
-    setDetectedNetwork(networkName);
-    setStatus('granted');
-  };
 
   if (status === 'granted') {
     return <>{children}</>;
@@ -62,14 +67,15 @@ export const NetworkGuard: React.FC<NetworkGuardProps> = ({ children }) => {
             <div className="flex justify-center mb-6">
               <div className={`h-24 w-24 rounded-full flex items-center justify-center transition-all duration-500 ${
                 status === 'scanning' ? 'bg-blue-500/20 animate-pulse' : 
-                status === 'denied' ? 'bg-red-500/20' : 'bg-green-500/20'
+                status === 'denied' ? 'bg-red-500/20' : 
+                'bg-green-500/20'
               }`}>
                 {status === 'scanning' ? (
                   <Loader2 className="h-12 w-12 text-blue-400 animate-spin" />
                 ) : status === 'denied' ? (
                   <WifiOff className="h-12 w-12 text-red-500" />
                 ) : (
-                  <Wifi className="h-12 w-12 text-green-500" />
+                  <Wifi className="h-12 w-12 text-green-500 animate-bounce" />
                 )}
               </div>
             </div>
@@ -79,14 +85,42 @@ export const NetworkGuard: React.FC<NetworkGuardProps> = ({ children }) => {
         </div>
 
         <div className="p-8 space-y-6">
-          {status === 'scanning' ? (
+          {status === 'scanning' && (
             <div className="text-center space-y-4 py-4">
               <p className="text-slate-600 font-medium animate-pulse">Scanning for authorized office networks...</p>
               <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
                 <div className="bg-blue-500 h-full animate-[progress_2s_ease-in-out_infinite]"></div>
               </div>
             </div>
-          ) : (
+          )}
+
+          {status === 'success' && (
+            <div className="text-center space-y-4 py-4 animate-fade-in">
+              <div className="bg-green-50 border border-green-100 p-4 rounded-2xl">
+                <div className="flex flex-col items-center">
+                    <ShieldCheck className="w-8 h-8 text-green-600 mb-2" />
+                    <h3 className="text-lg font-bold text-green-900">Access Granted</h3>
+                    <p className="text-sm text-green-700 mt-1">Secure connection established</p>
+                </div>
+              </div>
+              
+              <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex items-center justify-between">
+                <div className="flex items-center">
+                    <div className="h-10 w-10 bg-white rounded-xl border border-slate-200 flex items-center justify-center mr-4">
+                        <Wifi className="w-5 h-5 text-green-500" />
+                    </div>
+                    <div className="text-left">
+                        <p className="text-sm font-bold text-slate-900">{detectedNetwork?.name}</p>
+                        <p className="text-xs text-slate-500 font-mono">Router IP: {detectedNetwork?.routerIp}</p>
+                    </div>
+                </div>
+              </div>
+              
+              <p className="text-xs text-slate-400">Redirecting to Login Page...</p>
+            </div>
+          )}
+
+          {status === 'denied' && (
             <>
               <div className="bg-red-50 border border-red-100 p-4 rounded-2xl flex items-start">
                 <ShieldAlert className="w-5 h-5 text-red-600 mr-3 mt-0.5 flex-shrink-0" />
@@ -99,36 +133,34 @@ export const NetworkGuard: React.FC<NetworkGuardProps> = ({ children }) => {
                 </div>
               </div>
 
-              <div className="space-y-3">
-                <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest text-center">Authorized Networks</p>
-                {ALLOWED_WIFI.map(wifi => (
-                  <button
-                    key={wifi.name}
-                    onClick={() => handleManualVerify(wifi.name)}
-                    className="w-full group bg-slate-50 hover:bg-white border border-slate-200 hover:border-blue-500 p-4 rounded-2xl transition-all duration-300 flex items-center justify-between hover:shadow-lg hover:shadow-blue-500/10"
-                  >
-                    <div className="flex items-center">
-                      <div className="h-10 w-10 bg-white rounded-xl border border-slate-200 flex items-center justify-center mr-4 group-hover:bg-blue-50 group-hover:border-blue-200 transition-colors">
-                        <Wifi className="w-5 h-5 text-slate-400 group-hover:text-blue-500" />
-                      </div>
-                      <div className="text-left">
-                        <p className="text-sm font-bold text-slate-900">{wifi.name}</p>
-                        <p className="text-[10px] text-slate-500 font-mono">Gateway: {wifi.gateway}</p>
+                <div className="space-y-3">
+                  <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest text-center">Required Network Connection</p>
+                  
+                  {ALLOWED_WIFI.map((wifi) => (
+                    <div key={wifi.name} className="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex items-center justify-between opacity-75">
+                      <div className="flex items-center">
+                        <div className="h-10 w-10 bg-white rounded-xl border border-slate-200 flex items-center justify-center mr-4">
+                          <Wifi className="w-5 h-5 text-slate-400" />
+                        </div>
+                        <div className="text-left">
+                          <p className="text-sm font-bold text-slate-900">{wifi.name}</p>
+                          <p className="text-xs text-slate-500 font-mono">Router IP: {wifi.routerIp}</p>
+                        </div>
                       </div>
                     </div>
-                    <div className="h-6 w-6 rounded-full border border-slate-300 flex items-center justify-center group-hover:border-blue-500 group-hover:bg-blue-500 transition-all">
-                      <div className="h-2 w-2 rounded-full bg-transparent group-hover:bg-white"></div>
-                    </div>
-                  </button>
-                ))}
-              </div>
+                  ))}
+
+                  <p className="text-xs text-center text-slate-400 mt-4 px-4">
+                    Please connect your device to one of the networks above to proceed.
+                  </p>
+                </div>
 
               <button 
                 onClick={verifyNetwork}
                 className="w-full flex items-center justify-center py-3 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors"
               >
                 <RefreshCw className="w-4 h-4 mr-2" />
-                Retry Automatic Scan
+                Retry Connection Check
               </button>
             </>
           )}
@@ -137,7 +169,7 @@ export const NetworkGuard: React.FC<NetworkGuardProps> = ({ children }) => {
         <div className="bg-slate-50 p-6 border-t border-slate-100">
           <div className="flex items-center justify-center space-x-2 text-slate-400">
             <ShieldCheck className="w-4 h-4" />
-            <span className="text-[10px] font-medium uppercase tracking-widest">Secure Environment v3.0</span>
+            <span className="text-[10px] font-medium uppercase tracking-widest">Secure Environment v3.1</span>
           </div>
         </div>
       </div>

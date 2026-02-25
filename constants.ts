@@ -9,6 +9,16 @@ export const OFFICE_LOCATION = {
 export const DEPARTURE_TIME_LIMIT = "17:00"; // 5 PM
 
 export const ALLOWED_WIFI = [
-  { name: "GlobeAtHome_E863F_5", gateway: "192.168.254.254" },
-  { name: "PLDTHOMEFIBR5G11a58", gateway: "192.168.1.1" }
+  { 
+    name: "GlobeAtHome_E863F_5", 
+    routerIp: "192.168.254.254",
+    // You MUST replace this with your actual Public IP Address (visit https://api.ipify.org to see it)
+    publicIp: "112.198.100.100" 
+  },
+  { 
+    name: "PLDTHOMEFIBR5G11a58", 
+    routerIp: "192.168.1.1",
+    // You MUST replace this with your actual Public IP Address
+    publicIp: "124.106.100.100" 
+  }
 ];

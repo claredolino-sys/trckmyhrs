@@ -65,7 +65,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
 
         <div className="p-8">
           <div className="relative aspect-square bg-slate-100 rounded-2xl overflow-hidden border-2 border-slate-200 shadow-inner flex items-center justify-center">
-            <div id="qr-reader" className="w-full h-full"></div>
+            <div id="qr-reader" className="w-full h-full flex items-center justify-center overflow-hidden [&>div]:!shadow-none [&>div]:!border-none [&>video]:!object-cover [&>video]:!w-full [&>video]:!h-full"></div>
             
             {isInitializing && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-50">
