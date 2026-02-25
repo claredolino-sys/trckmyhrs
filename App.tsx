@@ -162,6 +162,11 @@ const App: React.FC = () => {
       setIsQRScannerOpen(false);
       const user = await api.auth.loginWithQR(token);
       if (user) {
+          if (user.role === UserRole.ADMIN) {
+              alert("QR Login is not available for Administrators.");
+              return;
+          }
+
           if (!user.profile.profilePicture) {
               alert("Biometric enrollment required. Please contact admin to upload your profile photo.");
               return;
@@ -176,6 +181,11 @@ const App: React.FC = () => {
   const handleFaceSuccess = async () => {
       if (pendingQRUser) {
           const user = pendingQRUser;
+          
+          // Redirect directly to Real-time Attendance Dashboard
+          const redirectPath = user.role === UserRole.STUDENT ? '/student/realtime' : '/employee/realtime';
+          window.location.hash = redirectPath;
+
           setCurrentUser(user);
           setIsFaceLivenessOpen(false);
           setPendingQRUser(null);

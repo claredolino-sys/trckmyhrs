@@ -9,13 +9,18 @@ interface AdminActivityLogProps {
 
 export const AdminActivityLog: React.FC<AdminActivityLogProps> = ({ logs, students }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
 
   const filteredLogs = logs.filter(log => {
     const user = students.find(s => s.id === log.userId);
     const userName = user?.profile.name.toLowerCase() || 'system';
     const action = log.action.toLowerCase();
     const search = searchTerm.toLowerCase();
-    return userName.includes(search) || action.includes(search);
+    
+    const matchesSearch = userName.includes(search) || action.includes(search);
+    const matchesDate = dateFilter ? new Date(log.timestamp).toLocaleDateString() === new Date(dateFilter).toLocaleDateString() : true;
+
+    return matchesSearch && matchesDate;
   });
 
   return (
@@ -23,15 +28,25 @@ export const AdminActivityLog: React.FC<AdminActivityLogProps> = ({ logs, studen
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <h2 className="text-2xl font-bold text-gray-800">System Activity Log</h2>
         
-        <div className="relative w-full md:w-80">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-          <input
-            type="text"
-            placeholder="Search logs..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent shadow-sm"
-          />
+        <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+          <div className="relative w-full md:w-48">
+            <input
+              type="date"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="w-full pl-4 pr-4 py-2 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent shadow-sm text-sm"
+            />
+          </div>
+          <div className="relative w-full md:w-80">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Search logs..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent shadow-sm text-sm"
+            />
+          </div>
         </div>
       </div>
       
