@@ -1,0 +1,8 @@
+{
+  "name": "TrackMyHours - Secure Attendance System",
+  "description": "A secure attendance monitoring and management system for OJT interns and work immersion students with encrypted password storage.",
+  "requestFramePermissions": [
+    "geolocation",
+    "camera"
+  ]
+}

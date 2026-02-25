@@ -1,0 +1,280 @@
+import React, { useState } from 'react';
+import { User, AttendanceRecord } from '../types';
+import { formatMinutesToHours, formatDateForInput, addMinutesToTime, formatTime12Hour } from '../services/utils';
+import { 
+  CheckCircle2, 
+  Clock, 
+  AlertCircle, 
+  ChevronLeft, 
+  ChevronRight, 
+  CalendarDays,
+  Sun,
+  Moon,
+  ArrowRight,
+  Briefcase
+} from 'lucide-react';
+import { Link } from 'react-router-dom';
+
+interface EmployeeDashboardProps {
+  user: User;
+  attendance: AttendanceRecord[];
+}
+
+export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ user, attendance }) => {
+  // Stats Logic - For Employees, we track monthly or total stats instead of specific OJT requirements
+  const totalCompletedMinutes = attendance.reduce((acc, curr) => acc + curr.totalDailyMinutes, 0);
+  
+  // Calculate stats for current month
+  const now = new Date();
+  const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  
+  const currentMonthRecords = attendance.filter(r => r.date.startsWith(currentMonthStr));
+  const monthMinutes = currentMonthRecords.reduce((acc, curr) => acc + curr.totalDailyMinutes, 0);
+  const daysPresentMonth = currentMonthRecords.length;
+
+  // Time Prediction & Today's Activity Logic
+  const todayDate = new Date();
+  const todayStr = formatDateForInput(todayDate);
+  const todayRecord = attendance.find(r => r.date === todayStr);
+  
+  const formatTime = (time: string) => time ? formatTime12Hour(time) : '--:--';
+  const hasTime = (time: string) => !!time && time.length > 0;
+  
+  let predictionMsg = "";
+  if (todayRecord && todayRecord.amIn && !todayRecord.pmOut) {
+      // Assuming 8 hour shift + 1 hour break
+      const targetTime24 = addMinutesToTime(todayRecord.amIn, 540); 
+      predictionMsg = `Based on your ${formatTime12Hour(todayRecord.amIn)} arrival, your 9-hour day (including lunch) ends around ${formatTime12Hour(targetTime24)}.`;
+  } else if (!todayRecord) {
+      predictionMsg = "Don't forget to log your AM Arrival to get started today.";
+  } else {
+      predictionMsg = "Have a great rest of your day!";
+  }
+
+  // Calendar Logic
+  const [calendarDate, setCalendarDate] = useState(new Date());
+  const year = calendarDate.getFullYear();
+  const month = calendarDate.getMonth();
+  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDayOfMonth = new Date(year, month, 1).getDay(); // 0 is Sunday
+
+  const daysArray = [];
+  for(let i=0; i<firstDayOfMonth; i++) {
+      daysArray.push(null);
+  }
+  for(let i=1; i<=daysInMonth; i++) {
+      daysArray.push(new Date(year, month, i));
+  }
+
+  const getDayStatus = (date: Date) => {
+      const dateStr = formatDateForInput(date);
+      const isPresent = attendance.some(r => r.date === dateStr);
+      
+      if (isPresent) return 'present';
+      
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      
+      const isPast = date < today;
+      const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+      
+      if (isPast && !isWeekend) return 'absent';
+      return 'neutral';
+  };
+
+  const handlePrevMonth = () => setCalendarDate(new Date(year, month - 1, 1));
+  const handleNextMonth = () => setCalendarDate(new Date(year, month + 1, 1));
+
+  return (
+    <div className="space-y-8 max-w-7xl mx-auto pb-10">
+      
+      {/* Header Greeting */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+                Hello, {user.profile.name.split(' ')[0]}! 👋
+            </h1>
+            <p className="text-gray-500 mt-1">{user.profile.position ? `${user.profile.position} - ` : ''} {user.profile.department || 'Employee Dashboard'}</p>
+        </div>
+        <div className="text-sm font-medium text-gray-500 bg-white px-4 py-2 rounded-full shadow-sm border border-gray-200 flex items-center">
+            <CalendarDays className="w-4 h-4 mr-2 text-brand-600" />
+            {todayDate.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+        </div>
+      </div>
+
+      {/* Stats Overview Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
+          <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between hover:shadow-md transition-all duration-200">
+             <div className="flex items-start justify-between">
+                <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">This Month (Hours)</p>
+                    <p className="text-2xl font-bold text-brand-600 mt-1">{formatMinutesToHours(monthMinutes)}</p>
+                </div>
+                <div className="p-2 bg-brand-50 rounded-lg text-brand-600">
+                    <Clock size={20} />
+                </div>
+             </div>
+             <div className="mt-4 text-xs text-gray-400">
+                 Recorded for {monthNames[now.getMonth()]}
+             </div>
+          </div>
+
+          <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between hover:shadow-md transition-all duration-200">
+             <div className="flex items-start justify-between">
+                <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Days Present (Month)</p>
+                    <p className="text-2xl font-bold text-green-600 mt-1">{daysPresentMonth}</p>
+                </div>
+                <div className="p-2 bg-green-50 rounded-lg text-green-600">
+                    <CalendarDays size={20} />
+                </div>
+             </div>
+          </div>
+
+          <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between hover:shadow-md transition-all duration-200">
+             <div className="flex items-start justify-between">
+                <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Accumulated</p>
+                    <p className="text-2xl font-bold text-blue-600 mt-1">{formatMinutesToHours(totalCompletedMinutes)}</p>
+                </div>
+                <div className="p-2 bg-blue-50 rounded-lg text-blue-600">
+                    <Briefcase size={20} />
+                </div>
+             </div>
+          </div>
+      </div>
+
+      {/* Today's Pulse (Hero Card) */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
+          <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+              <h2 className="text-lg font-bold text-gray-800 flex items-center">
+                <Clock className="w-5 h-5 mr-2 text-brand-600" /> Today's Pulse
+              </h2>
+              <Link to="/employee/realtime" className="text-sm text-brand-600 font-medium hover:text-brand-800 flex items-center transition-colors">
+                  Go to Real-time <ArrowRight size={16} className="ml-1" />
+              </Link>
+          </div>
+          
+          <div className="p-6 md:p-8 flex-1 flex flex-col justify-center">
+              {/* Timeline Visualization */}
+              <div className="relative">
+                  {/* Connecting Line */}
+                  <div className="absolute top-1/2 left-0 w-full h-1 bg-gray-100 -translate-y-1/2 z-0 hidden md:block rounded-full"></div>
+                  
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-6 relative z-10">
+                      {/* AM In */}
+                      <div className={`flex flex-col items-center text-center p-3 rounded-xl border-2 transition-all ${hasTime(todayRecord?.amIn || '') ? 'border-blue-500 bg-blue-50' : 'border-gray-100 bg-white'}`}>
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-2 ${hasTime(todayRecord?.amIn || '') ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                              <Sun size={14} />
+                          </div>
+                          <span className="text-xs font-semibold text-gray-500 uppercase">AM Arrival</span>
+                          <span className="text-lg font-bold text-gray-800 mt-1">{formatTime(todayRecord?.amIn || '')}</span>
+                      </div>
+
+                      {/* AM Out */}
+                      <div className={`flex flex-col items-center text-center p-3 rounded-xl border-2 transition-all ${hasTime(todayRecord?.amOut || '') ? 'border-blue-500 bg-blue-50' : 'border-gray-100 bg-white'}`}>
+                           <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-2 ${hasTime(todayRecord?.amOut || '') ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                              <Clock size={14} />
+                          </div>
+                          <span className="text-xs font-semibold text-gray-500 uppercase">AM Depart</span>
+                          <span className="text-lg font-bold text-gray-800 mt-1">{formatTime(todayRecord?.amOut || '')}</span>
+                      </div>
+
+                      {/* PM In */}
+                      <div className={`flex flex-col items-center text-center p-3 rounded-xl border-2 transition-all ${hasTime(todayRecord?.pmIn || '') ? 'border-orange-500 bg-orange-50' : 'border-gray-100 bg-white'}`}>
+                           <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-2 ${hasTime(todayRecord?.pmIn || '') ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                              <Sun size={14} />
+                          </div>
+                          <span className="text-xs font-semibold text-gray-500 uppercase">PM Arrival</span>
+                          <span className="text-lg font-bold text-gray-800 mt-1">{formatTime(todayRecord?.pmIn || '')}</span>
+                      </div>
+
+                      {/* PM Out */}
+                      <div className={`flex flex-col items-center text-center p-3 rounded-xl border-2 transition-all ${hasTime(todayRecord?.pmOut || '') ? 'border-orange-500 bg-orange-50' : 'border-gray-100 bg-white'}`}>
+                           <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-2 ${hasTime(todayRecord?.pmOut || '') ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                              <Moon size={14} />
+                          </div>
+                          <span className="text-xs font-semibold text-gray-500 uppercase">PM Depart</span>
+                          <span className="text-lg font-bold text-gray-800 mt-1">{formatTime(todayRecord?.pmOut || '')}</span>
+                      </div>
+                  </div>
+              </div>
+
+              {/* Smart Tip / Prediction */}
+              <div className="mt-8 bg-gradient-to-r from-brand-50 to-blue-50 rounded-xl p-5 border border-brand-100 flex items-start">
+                  <div className="bg-white p-2 rounded-full shadow-sm text-brand-600 mr-4 flex-shrink-0">
+                      <AlertCircle size={20} />
+                  </div>
+                  <div>
+                      <h4 className="font-bold text-brand-900 text-sm">Status</h4>
+                      <p className="text-brand-700 text-sm mt-1 leading-relaxed">
+                          {predictionMsg}
+                      </p>
+                  </div>
+              </div>
+          </div>
+      </div>
+
+      {/* Calendar Section - Full Width */}
+      <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-200">
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+                <div>
+                    <h2 className="text-xl font-bold text-gray-800">Attendance History</h2>
+                    <p className="text-sm text-gray-500 mt-1">Review your daily attendance status</p>
+                </div>
+                
+                <div className="flex items-center bg-gray-50 p-1.5 rounded-xl border border-gray-100">
+                    <button onClick={handlePrevMonth} className="p-2 hover:bg-white hover:shadow-sm rounded-lg transition-all text-gray-600"><ChevronLeft size={20} /></button>
+                    <span className="font-bold text-gray-800 min-w-[140px] text-center select-none text-sm md:text-base">
+                        {monthNames[month]} {year}
+                    </span>
+                    <button onClick={handleNextMonth} className="p-2 hover:bg-white hover:shadow-sm rounded-lg transition-all text-gray-600"><ChevronRight size={20} /></button>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-7 gap-2 md:gap-4 mb-4">
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                <div key={day} className="text-center text-xs font-bold text-gray-400 uppercase tracking-wider">{day}</div>
+                ))}
+            </div>
+            
+            <div className="grid grid-cols-7 gap-2 md:gap-4">
+                {daysArray.map((date, index) => {
+                    if (!date) return <div key={`empty-${index}`} className="aspect-square"></div>;
+                    
+                    const status = getDayStatus(date);
+                    let bgClass = "bg-gray-50 text-gray-400 border-transparent"; // Neutral
+                    let content = <span className="text-sm md:text-lg">{date.getDate()}</span>;
+                    
+                    if (status === 'present') {
+                        bgClass = "bg-brand-50 text-brand-700 border-brand-200 ring-2 ring-brand-50 ring-offset-2";
+                        content = (
+                            <>
+                                <span className="text-sm md:text-lg font-bold">{date.getDate()}</span>
+                                <CheckCircle2 className="w-3 h-3 md:w-4 md:h-4 absolute bottom-1 right-1 md:bottom-2 md:right-2 text-brand-500" />
+                            </>
+                        );
+                    } else if (status === 'absent') {
+                        bgClass = "bg-red-50 text-red-400 border-red-100";
+                    } else if (date.toDateString() === new Date().toDateString()) {
+                        bgClass = "bg-white border-brand-500 border-2 text-brand-600 shadow-md";
+                    }
+
+                    return (
+                        <div key={index} className={`relative aspect-square flex flex-col items-center justify-center rounded-xl border transition-all duration-200 hover:scale-105 cursor-default ${bgClass}`}>
+                            {content}
+                        </div>
+                    );
+                })}
+            </div>
+            
+            <div className="mt-8 flex flex-wrap gap-6 text-sm text-gray-600 border-t border-gray-100 pt-6">
+                <div className="flex items-center"><div className="w-4 h-4 bg-brand-50 border border-brand-200 rounded-md mr-2 flex items-center justify-center"><CheckCircle2 className="w-3 h-3 text-brand-500"/></div> Present</div>
+                <div className="flex items-center"><div className="w-4 h-4 bg-red-50 border border-red-200 rounded-md mr-2"></div> Absent / Missed</div>
+            </div>
+      </div>
+    </div>
+  );
+};
