@@ -96,7 +96,11 @@ export const FaceLiveness: React.FC<FaceLivenessProps> = ({ storedProfilePicture
         }
       });
 
-      const result = JSON.parse(response.text || '{}');
+      let responseText = response.text || '{}';
+      // Clean up markdown code blocks if present
+      responseText = responseText.replace(/```json\n?|\n?```/g, '').trim();
+      
+      const result = JSON.parse(responseText);
 
       if (result.isSamePerson && result.isLive && result.confidence > 0.7) {
         setStatus('success');
@@ -121,7 +125,7 @@ export const FaceLiveness: React.FC<FaceLivenessProps> = ({ storedProfilePicture
             <UserCheck className="w-6 h-6 mr-2 text-blue-400" />
             Biometric Verification
           </h2>
-          <p className="text-slate-400 text-xs mt-1">Face Match & Liveness Detection</p>
+          <p className="text-slate-400 text-xs mt-1">Matching with Registered Profile Photo</p>
         </div>
 
         <div className="p-6 space-y-6">

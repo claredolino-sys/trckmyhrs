@@ -39,8 +39,8 @@ const App: React.FC = () => {
   
   // QR & Biometric State
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
+  const [showFaceLiveness, setShowFaceLiveness] = useState(false);
   const [pendingQRUser, setPendingQRUser] = useState<User | null>(null);
-  const [isFaceLivenessOpen, setIsFaceLivenessOpen] = useState(false);
   
   // Data State (Fetched from API)
   const [students, setStudents] = useState<User[]>([]);
@@ -167,48 +167,51 @@ const App: React.FC = () => {
               return;
           }
 
+          // Check if user has a profile picture for biometric verification
           if (!user.profile.profilePicture) {
-              alert("Biometric enrollment required. Please contact admin to upload your profile photo.");
+              alert("Biometric verification failed: No profile picture found. Please contact Admin to upload a profile photo.");
               return;
           }
+
           setPendingQRUser(user);
-          setIsFaceLivenessOpen(true);
+          setShowFaceLiveness(true);
       } else {
           alert("Invalid QR Code.");
       }
   };
 
   const handleFaceSuccess = async () => {
-      if (pendingQRUser) {
-          const user = pendingQRUser;
-          
-          // Redirect directly to Real-time Attendance Dashboard
-          const redirectPath = user.role === UserRole.STUDENT ? '/student/realtime' : '/employee/realtime';
-          window.location.hash = redirectPath;
+      if (!pendingQRUser) return;
 
-          setCurrentUser(user);
-          setIsFaceLivenessOpen(false);
-          setPendingQRUser(null);
-          
-          let location: { lat: number; lng: number } | undefined = undefined;
-          try {
-              const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-                  navigator.geolocation.getCurrentPosition(resolve, reject, { 
-                      enableHighAccuracy: true,
-                      maximumAge: 0,
-                      timeout: 10000
-                  });
+      const user = pendingQRUser;
+      setShowFaceLiveness(false);
+      setPendingQRUser(null);
+
+      // Direct login after successful face verification
+      const redirectPath = user.role === UserRole.STUDENT ? '/student/realtime' : '/employee/realtime';
+      window.location.hash = redirectPath;
+
+      setCurrentUser(user);
+      
+      let location: { lat: number; lng: number } | undefined = undefined;
+      try {
+          const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+              navigator.geolocation.getCurrentPosition(resolve, reject, { 
+                  enableHighAccuracy: true,
+                  maximumAge: 0,
+                  timeout: 10000
               });
-              location = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-              setCurrentLocation(location);
-          } catch (err) {
-              console.error("Location access failed:", err);
-          }
-          
-          const network = localStorage.getItem('verified_network') || 'Unknown';
-          logActivity(user.id, `${user.role} logged in via QR & Biometrics`, location, network);
+          });
+          location = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          setCurrentLocation(location);
+      } catch (err) {
+          console.error("Location access failed:", err);
       }
+      
+      const network = localStorage.getItem('verified_network') || 'Unknown';
+      logActivity(user.id, `${user.role} logged in via QR Code & Biometrics`, location, network);
   };
+
 
   // --- CRUD Handlers (Now using API) ---
 
@@ -277,7 +280,7 @@ const App: React.FC = () => {
 
   if (!currentUser) {
     return (
-        <NetworkGuard>
+        <>
             <Login 
                 onLogin={handleLogin} 
                 onRegister={handleRegister} 
@@ -290,14 +293,14 @@ const App: React.FC = () => {
                     onClose={() => setIsQRScannerOpen(false)} 
                 />
             )}
-            {isFaceLivenessOpen && pendingQRUser && (
+            {showFaceLiveness && pendingQRUser && pendingQRUser.profile.profilePicture && (
                 <FaceLiveness 
-                    storedProfilePicture={pendingQRUser.profile.profilePicture || ''}
+                    storedProfilePicture={pendingQRUser.profile.profilePicture}
                     onSuccess={handleFaceSuccess}
-                    onCancel={() => { setIsFaceLivenessOpen(false); setPendingQRUser(null); }}
+                    onCancel={() => { setShowFaceLiveness(false); setPendingQRUser(null); }}
                 />
             )}
-        </NetworkGuard>
+        </>
     );
   }
 
@@ -305,7 +308,7 @@ const App: React.FC = () => {
   const todayRecord = attendanceRecords.find(r => r.date === todayStr && r.userId === currentUser.id);
 
   return (
-    <NetworkGuard>
+    <NetworkGuard userRole={currentUser.role}>
       <Router>
         <Layout user={currentUser} onLogout={handleLogout}>
           <Routes>

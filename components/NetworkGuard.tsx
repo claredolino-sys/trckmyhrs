@@ -1,19 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { Wifi, WifiOff, ShieldCheck, ShieldAlert, Loader2, RefreshCw } from 'lucide-react';
+import { Wifi, WifiOff, ShieldCheck, ShieldAlert, Loader2, RefreshCw, QrCode } from 'lucide-react';
 import { ALLOWED_WIFI } from '../constants';
+import { UserRole } from '../types';
 
 interface NetworkGuardProps {
   children: React.ReactNode;
+  userRole?: UserRole;
 }
 
-export const NetworkGuard: React.FC<NetworkGuardProps> = ({ children }) => {
-  const [status, setStatus] = useState<'scanning' | 'denied' | 'success' | 'granted'>('scanning');
-  const [detectedNetwork, setDetectedNetwork] = useState<{ name: string; routerIp: string } | null>(null);
+export const NetworkGuard: React.FC<NetworkGuardProps> = ({ children, userRole }) => {
+  const [status, setStatus] = useState<'scanning' | 'denied' | 'granted'>('scanning');
+  const [detectedNetwork, setDetectedNetwork] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-
   const [currentIp, setCurrentIp] = useState<string | null>(null);
 
   const verifyNetwork = async () => {
+    // If user is Admin, bypass network check immediately
+    if (userRole === UserRole.ADMIN) {
+      setStatus('granted');
+      return;
+    }
+
     setStatus('scanning');
     setError(null);
     
@@ -24,17 +31,13 @@ export const NetworkGuard: React.FC<NetworkGuardProps> = ({ children }) => {
       const ip = data.ip;
       setCurrentIp(ip);
 
-      const allowed = ALLOWED_WIFI.find(w => w.publicIp === ip);
+      // Check if current IP matches any allowed WiFi network
+      const allowed = ALLOWED_WIFI.find(w => w.ip === ip);
       
       if (allowed) {
-        setDetectedNetwork({ name: allowed.name, routerIp: allowed.routerIp });
-        setStatus('success');
+        setDetectedNetwork(allowed.name);
+        setStatus('granted');
         localStorage.setItem('verified_network', allowed.name);
-        
-        // Brief delay to show success message before granting access
-        setTimeout(() => {
-            setStatus('granted');
-        }, 2000);
       } else {
         setStatus('denied');
         localStorage.removeItem('verified_network');
@@ -48,7 +51,7 @@ export const NetworkGuard: React.FC<NetworkGuardProps> = ({ children }) => {
 
   useEffect(() => {
     verifyNetwork();
-  }, []);
+  }, [userRole]);
 
   if (status === 'granted') {
     return <>{children}</>;
@@ -67,15 +70,14 @@ export const NetworkGuard: React.FC<NetworkGuardProps> = ({ children }) => {
             <div className="flex justify-center mb-6">
               <div className={`h-24 w-24 rounded-full flex items-center justify-center transition-all duration-500 ${
                 status === 'scanning' ? 'bg-blue-500/20 animate-pulse' : 
-                status === 'denied' ? 'bg-red-500/20' : 
-                'bg-green-500/20'
+                status === 'denied' ? 'bg-red-500/20' : 'bg-green-500/20'
               }`}>
                 {status === 'scanning' ? (
                   <Loader2 className="h-12 w-12 text-blue-400 animate-spin" />
                 ) : status === 'denied' ? (
                   <WifiOff className="h-12 w-12 text-red-500" />
                 ) : (
-                  <Wifi className="h-12 w-12 text-green-500 animate-bounce" />
+                  <Wifi className="h-12 w-12 text-green-500" />
                 )}
               </div>
             </div>
@@ -85,82 +87,68 @@ export const NetworkGuard: React.FC<NetworkGuardProps> = ({ children }) => {
         </div>
 
         <div className="p-8 space-y-6">
-          {status === 'scanning' && (
+          {status === 'scanning' ? (
             <div className="text-center space-y-4 py-4">
               <p className="text-slate-600 font-medium animate-pulse">Scanning for authorized office networks...</p>
               <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
                 <div className="bg-blue-500 h-full animate-[progress_2s_ease-in-out_infinite]"></div>
               </div>
             </div>
-          )}
-
-          {status === 'success' && (
-            <div className="text-center space-y-4 py-4 animate-fade-in">
-              <div className="bg-green-50 border border-green-100 p-4 rounded-2xl">
-                <div className="flex flex-col items-center">
-                    <ShieldCheck className="w-8 h-8 text-green-600 mb-2" />
-                    <h3 className="text-lg font-bold text-green-900">Access Granted</h3>
-                    <p className="text-sm text-green-700 mt-1">Secure connection established</p>
-                </div>
-              </div>
-              
-              <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex items-center justify-between">
-                <div className="flex items-center">
-                    <div className="h-10 w-10 bg-white rounded-xl border border-slate-200 flex items-center justify-center mr-4">
-                        <Wifi className="w-5 h-5 text-green-500" />
-                    </div>
-                    <div className="text-left">
-                        <p className="text-sm font-bold text-slate-900">{detectedNetwork?.name}</p>
-                        <p className="text-xs text-slate-500 font-mono">Router IP: {detectedNetwork?.routerIp}</p>
-                    </div>
-                </div>
-              </div>
-              
-              <p className="text-xs text-slate-400">Redirecting to Login Page...</p>
-            </div>
-          )}
-
-          {status === 'denied' && (
+          ) : (
             <>
               <div className="bg-red-50 border border-red-100 p-4 rounded-2xl flex items-start">
                 <ShieldAlert className="w-5 h-5 text-red-600 mr-3 mt-0.5 flex-shrink-0" />
                 <div>
                   <h3 className="text-sm font-bold text-red-900">Access Restricted</h3>
                   <p className="text-xs text-red-700 mt-1 leading-relaxed">
-                    This application is only accessible via authorized office WiFi networks. 
-                    Mobile data and public networks are strictly prohibited for security reasons.
+                    This application is strictly restricted to authorized office networks.
+                    <br/><br/>
+                    <strong>Please scan the Office WiFi QR Code</strong> to connect your device to the correct network.
                   </p>
                 </div>
               </div>
 
-                <div className="space-y-3">
-                  <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest text-center">Required Network Connection</p>
-                  
-                  {ALLOWED_WIFI.map((wifi) => (
-                    <div key={wifi.name} className="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex items-center justify-between opacity-75">
-                      <div className="flex items-center">
-                        <div className="h-10 w-10 bg-white rounded-xl border border-slate-200 flex items-center justify-center mr-4">
-                          <Wifi className="w-5 h-5 text-slate-400" />
-                        </div>
-                        <div className="text-left">
-                          <p className="text-sm font-bold text-slate-900">{wifi.name}</p>
-                          <p className="text-xs text-slate-500 font-mono">Router IP: {wifi.routerIp}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-
-                  <p className="text-xs text-center text-slate-400 mt-4 px-4">
-                    Please connect your device to one of the networks above to proceed.
-                  </p>
+              <div className="space-y-3">
+                <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest text-center">Required Networks</p>
+                <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl">
+                  <ul className="space-y-2">
+                    {ALLOWED_WIFI.map(w => (
+                      <li key={w.name} className="flex items-center text-xs text-slate-600">
+                        <QrCode className="w-3 h-3 mr-2 text-slate-400" />
+                        <span className="font-mono">{w.name}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest text-center">Your Current Connection</p>
+                <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex items-center justify-between">
+                  <div className="flex items-center">
+                    <div className="h-10 w-10 bg-white rounded-xl border border-slate-200 flex items-center justify-center mr-4">
+                      <Wifi className="w-5 h-5 text-slate-400" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-bold text-slate-900">Detected IP Address</p>
+                      <p className="text-xs text-slate-500 font-mono">{currentIp || 'Fetching...'}</p>
+                    </div>
+                  </div>
+                  <div className="h-6 w-6 rounded-full border border-red-300 bg-red-50 flex items-center justify-center">
+                    <div className="h-2 w-2 rounded-full bg-red-500"></div>
+                  </div>
+                </div>
+                <p className="text-xs text-center text-slate-400 mt-2">
+                  Connection to mobile data or unauthorized WiFi is prohibited.
+                </p>
+              </div>
 
               <button 
                 onClick={verifyNetwork}
                 className="w-full flex items-center justify-center py-3 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors"
               >
                 <RefreshCw className="w-4 h-4 mr-2" />
-                Retry Connection Check
+                Retry Automatic Scan
               </button>
             </>
           )}
@@ -169,7 +157,7 @@ export const NetworkGuard: React.FC<NetworkGuardProps> = ({ children }) => {
         <div className="bg-slate-50 p-6 border-t border-slate-100">
           <div className="flex items-center justify-center space-x-2 text-slate-400">
             <ShieldCheck className="w-4 h-4" />
-            <span className="text-[10px] font-medium uppercase tracking-widest">Secure Environment v3.1</span>
+            <span className="text-[10px] font-medium uppercase tracking-widest">Secure Environment v3.0</span>
           </div>
         </div>
       </div>

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
-import { QrCode, X, Camera, Loader2, AlertCircle } from 'lucide-react';
+import { Html5Qrcode } from 'html5-qrcode';
+import { QrCode, X, Camera, Loader2, AlertCircle, ShieldCheck } from 'lucide-react';
 
 interface QRScannerProps {
   onScan: (token: string) => void;
@@ -9,40 +9,56 @@ interface QRScannerProps {
 
 export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
   const [error, setError] = useState<string | null>(null);
-  const [isInitializing, setIsInitializing] = useState(true);
-  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [permissionGranted, setPermissionGranted] = useState(false);
+  const scannerRef = useRef<Html5Qrcode | null>(null);
 
   useEffect(() => {
-    const scannerId = "qr-reader";
-    
-    const config = { 
-      fps: 10, 
-      qrbox: { width: 250, height: 250 },
-      aspectRatio: 1.0
-    };
-
-    scannerRef.current = new Html5QrcodeScanner(scannerId, config, false);
-    
-    scannerRef.current.render(
-      (decodedText) => {
-        if (scannerRef.current) {
-          scannerRef.current.clear();
-        }
-        onScan(decodedText);
-      },
-      (errorMessage) => {
-        // Ignore errors during scan
-      }
-    );
-
-    setIsInitializing(false);
-
+    // Cleanup on unmount
     return () => {
-      if (scannerRef.current) {
-        scannerRef.current.clear().catch(err => console.error("Failed to clear scanner", err));
+      if (scannerRef.current && scannerRef.current.isScanning) {
+        scannerRef.current.stop().catch(err => console.error("Failed to stop scanner", err));
       }
     };
-  }, [onScan]);
+  }, []);
+
+  const startScanning = async () => {
+    setError(null);
+    try {
+      const scannerId = "qr-reader";
+      if (!scannerRef.current) {
+        scannerRef.current = new Html5Qrcode(scannerId);
+      }
+
+      await scannerRef.current.start(
+        { facingMode: "environment" },
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1.0
+        },
+        (decodedText) => {
+          // Success callback
+          if (scannerRef.current) {
+             scannerRef.current.stop().then(() => {
+                scannerRef.current?.clear();
+                onScan(decodedText);
+             }).catch(err => console.error("Failed to stop after scan", err));
+          }
+        },
+        (errorMessage) => {
+          // Ignore frame parse errors
+        }
+      );
+      
+      setPermissionGranted(true);
+      setIsScanning(true);
+    } catch (err) {
+      console.error("Failed to start scanner", err);
+      setError("Camera access denied or unavailable. Please check your permissions.");
+      setPermissionGranted(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-[100] bg-slate-900/90 flex items-center justify-center p-4 backdrop-blur-md">
@@ -65,27 +81,46 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
 
         <div className="p-8">
           <div className="relative aspect-square bg-slate-100 rounded-2xl overflow-hidden border-2 border-slate-200 shadow-inner flex items-center justify-center">
-            <div id="qr-reader" className="w-full h-full flex items-center justify-center overflow-hidden [&>div]:!shadow-none [&>div]:!border-none [&>video]:!object-cover [&>video]:!w-full [&>video]:!h-full"></div>
+            <div id="qr-reader" className="w-full h-full"></div>
             
-            {isInitializing && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-50">
-                <Loader2 className="w-10 h-10 text-blue-500 animate-spin mb-3" />
-                <p className="text-sm text-slate-500 font-medium">Starting camera...</p>
+            {!permissionGranted && !error && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-50 p-6 text-center z-10">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                  <Camera className="w-8 h-8 text-blue-600" />
+                </div>
+                <h3 className="text-slate-900 font-bold text-lg mb-2">Camera Access Required</h3>
+                <p className="text-slate-500 text-xs mb-6 leading-relaxed">
+                  To scan your login QR code, we need access to your device's camera.
+                </p>
+                <button
+                  onClick={startScanning}
+                  className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-600/20 transition-all transform hover:scale-105 active:scale-95 flex items-center"
+                >
+                  <ShieldCheck className="w-4 h-4 mr-2" />
+                  Allow Camera Access
+                </button>
               </div>
             )}
 
             {error && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-red-50 p-6 text-center">
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-red-50 p-6 text-center z-20">
                 <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
                 <p className="text-sm text-red-700 font-bold mb-2">Camera Error</p>
-                <p className="text-xs text-red-600 leading-relaxed">{error}</p>
+                <p className="text-xs text-red-600 leading-relaxed mb-6">{error}</p>
                 <button 
-                  onClick={() => window.location.reload()}
-                  className="mt-6 px-6 py-2 bg-red-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-red-600/20"
+                  onClick={startScanning}
+                  className="px-6 py-2 bg-red-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-red-600/20 hover:bg-red-700 transition-colors"
                 >
-                  Reload Page
+                  Try Again
                 </button>
               </div>
+            )}
+            
+            {isScanning && (
+               <div className="absolute inset-0 pointer-events-none border-[40px] border-slate-900/50 z-10">
+                  <div className="absolute inset-0 border-2 border-blue-500/50 animate-pulse"></div>
+                  <div className="absolute top-1/2 left-0 w-full h-0.5 bg-red-500/50 shadow-[0_0_10px_rgba(239,68,68,0.5)] animate-[scan_2s_ease-in-out_infinite]"></div>
+               </div>
             )}
           </div>
 
@@ -109,6 +144,13 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
            </button>
         </div>
       </div>
+      <style>{`
+        @keyframes scan {
+          0% { transform: translateY(-100px); opacity: 0; }
+          50% { opacity: 1; }
+          100% { transform: translateY(100px); opacity: 0; }
+        }
+      `}</style>
     </div>
   );
 };

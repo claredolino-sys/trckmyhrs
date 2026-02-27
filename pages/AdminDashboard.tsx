@@ -116,8 +116,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ students, employ
           {/* Attendance Activity Chart */}
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 min-w-0">
               <h3 className="text-md font-bold text-gray-800 mb-4">Real-time Attendance Status</h3>
-              <div className="h-[300px] w-full relative">
-                  <ResponsiveContainer width="99%" height="100%">
+              <div style={{ width: '100%', height: 300 }}>
+                  <ResponsiveContainer>
                       <BarChart
                           data={attendanceActivityData}
                           layout="vertical"

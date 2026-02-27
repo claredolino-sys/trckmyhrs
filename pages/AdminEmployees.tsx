@@ -5,6 +5,7 @@ import { Input } from '../components/Input';
 import { formatMinutesToHours } from '../services/utils';
 import { Edit, Trash2, Plus, X, AlertTriangle, QrCode, Camera, Download } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import html2canvas from 'html2canvas';
 
 interface AdminEmployeesProps {
   employees: User[];
@@ -115,6 +116,28 @@ export const AdminEmployees: React.FC<AdminEmployeesProps> = ({ employees, onAdd
           onAdd(userData);
       }
       setIsModalOpen(false);
+  };
+
+  const handleExportQR = async () => {
+    const element = document.getElementById('qr-id-card');
+    if (element && qrEmployee) {
+        try {
+            const canvas = await html2canvas(element, {
+                backgroundColor: '#ffffff',
+                scale: 2, // Higher resolution
+            });
+            const dataUrl = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.href = dataUrl;
+            link.download = `${qrEmployee.profile.name.replace(/\s+/g, '_')}_ID_Card.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } catch (error) {
+            console.error('Failed to export QR card:', error);
+            alert('Failed to export QR card. Please try again.');
+        }
+    }
   };
 
   return (
@@ -236,39 +259,55 @@ export const AdminEmployees: React.FC<AdminEmployeesProps> = ({ employees, onAdd
       {/* QR Code Modal */}
       {isQrModalOpen && qrEmployee && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 px-4">
-              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-8 animate-fade-in relative overflow-hidden">
-                  <div className="absolute top-0 left-0 w-full h-2 bg-brand-600"></div>
-                  <button onClick={() => setIsQrModalOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><X size={24} /></button>
-                  
-                  <div className="text-center mb-6">
-                      <div className="w-16 h-16 bg-brand-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                          <QrCode className="w-8 h-8 text-brand-600" />
+              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-0 animate-fade-in relative overflow-hidden">
+                  <div className="printable-area flex flex-col items-center justify-center w-full h-full bg-white p-8">
+                      {/* ID Card Design */}
+                      <div id="qr-id-card" className="w-full border-2 border-gray-200 rounded-2xl p-6 text-center relative overflow-hidden bg-white shadow-sm">
+                          {/* Header Decoration */}
+                          <div className="absolute top-0 left-0 w-full h-3 bg-gradient-to-r from-purple-600 to-pink-600"></div>
+                          
+                          <div className="mt-8 mb-2">
+                              <h2 className="text-xl font-bold text-gray-900 leading-tight">{qrEmployee.profile.name}</h2>
+                              <p className="text-sm text-gray-500 font-medium">{qrEmployee.profile.position || 'Employee'}</p>
+                              <p className="text-xs text-gray-400">{qrEmployee.profile.department}</p>
+                          </div>
+
+                          <div className="my-6 flex justify-center">
+                              <div className="p-2 bg-white rounded-xl border border-gray-100 shadow-sm">
+                                  <QRCodeSVG 
+                                      value={qrEmployee.qrToken || ''} 
+                                      size={160}
+                                      level="H"
+                                      includeMargin={true}
+                                  />
+                              </div>
+                          </div>
+
+                          <div className="text-xs text-gray-400 font-mono tracking-wider uppercase">
+                              ID: {qrEmployee.profile.username}
+                          </div>
+                          
+                          <div className="mt-4 pt-4 border-t border-gray-100">
+                              <p className="text-[10px] text-gray-400">
+                                  Use this QR code to log in securely.
+                              </p>
+                          </div>
                       </div>
-                      <h3 className="text-xl font-bold text-gray-900">Employee QR Access</h3>
-                      <p className="text-sm text-gray-500 mt-1">Scan for secure passwordless login</p>
                   </div>
 
-                  <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100 flex flex-col items-center shadow-inner">
-                      <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-                        <QRCodeSVG 
-                            value={qrEmployee.qrToken || ''} 
-                            size={180}
-                            level="H"
-                            includeMargin={false}
-                        />
-                      </div>
-                      <div className="mt-6 text-center">
-                          <p className="text-sm font-bold text-gray-900">{qrEmployee.profile.name}</p>
-                          <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mt-1">{qrEmployee.role}</p>
-                      </div>
+                  {/* Controls (Hidden on Print) */}
+                  <div className="absolute top-4 right-4 no-print z-10">
+                      <button onClick={() => setIsQrModalOpen(false)} className="bg-white/80 p-2 rounded-full text-gray-600 hover:text-gray-900 hover:bg-white transition-colors">
+                          <X size={20} />
+                      </button>
                   </div>
 
-                  <div className="mt-8 space-y-3">
-                      <Button fullWidth onClick={() => window.print()} className="bg-slate-900 hover:bg-slate-800">
-                          <Download size={18} className="mr-2" /> Print QR Code
+                  <div className="p-6 bg-gray-50 border-t border-gray-100 no-print">
+                      <Button fullWidth onClick={handleExportQR} className="bg-slate-900 hover:bg-slate-800 shadow-lg">
+                          <Download size={18} className="mr-2" /> Export QR Card
                       </Button>
-                      <p className="text-[10px] text-center text-gray-400 leading-relaxed px-4">
-                          This QR code is unique to this employee. It grants access after face liveness verification.
+                      <p className="text-[10px] text-center text-gray-400 mt-3 leading-relaxed">
+                          Clicking export will download the ID card as an image.
                       </p>
                   </div>
               </div>
