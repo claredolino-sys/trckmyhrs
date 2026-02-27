@@ -40,7 +40,7 @@ const App: React.FC = () => {
   // QR & Biometric State
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
   const [showFaceLiveness, setShowFaceLiveness] = useState(false);
-  const [pendingQRUser, setPendingQRUser] = useState<User | null>(null);
+  const [pendingVerificationUser, setPendingVerificationUser] = useState<User | null>(null);
   
   // Data State (Fetched from API)
   const [students, setStudents] = useState<User[]>([]);
@@ -90,31 +90,57 @@ const App: React.FC = () => {
   const handleLogin = async (role: UserRole, username: string, password: string) => {
       const user = await api.auth.login(role, username, password);
       if (user) {
-          setCurrentUser(user);
-          
-          let location: { lat: number; lng: number } | undefined = undefined;
-          if (role !== UserRole.ADMIN) {
-              try {
-                  const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-                      navigator.geolocation.getCurrentPosition(resolve, reject, { 
-                          enableHighAccuracy: true,
-                          maximumAge: 0,
-                          timeout: 10000
-                      });
-                  });
-                  location = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                  setCurrentLocation(location);
-              } catch (err) {
-                  console.error("Location access denied or failed:", err);
-                  alert("Location access is required for attendance logging. Please enable it.");
+          if (user.role === UserRole.ADMIN) {
+              completeLogin(user, 'Admin logged in');
+          } else {
+              // Check for profile picture for biometric verification
+              if (!user.profile.profilePicture) {
+                  alert("Biometric verification failed: No profile picture found. Please contact Admin to upload a profile photo.");
+                  return;
               }
+              setPendingVerificationUser(user);
+              setShowFaceLiveness(true);
           }
-          
-          const network = localStorage.getItem('verified_network') || 'Unknown';
-          logActivity(user.id, `${role === UserRole.ADMIN ? 'Admin' : role === UserRole.EMPLOYEE ? 'Employee' : 'Student'} logged in`, location, network);
       } else {
           alert("Invalid credentials.");
       }
+  };
+
+  const completeLogin = async (user: User, activityMessage: string) => {
+      // Direct login logic
+      const redirectPath = user.role === UserRole.STUDENT ? '/student/realtime' : 
+                           user.role === UserRole.EMPLOYEE ? '/employee/realtime' : 
+                           '/admin/dashboard';
+      
+      if (user.role !== UserRole.ADMIN) {
+          window.location.hash = redirectPath;
+      }
+      
+      // Refresh data
+      await refreshData();
+      setCurrentUser(user);
+
+      // Location logic
+      let location: { lat: number; lng: number } | undefined = undefined;
+      if (user.role !== UserRole.ADMIN) {
+          try {
+              const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+                  navigator.geolocation.getCurrentPosition(resolve, reject, { 
+                      enableHighAccuracy: true,
+                      maximumAge: 0,
+                      timeout: 10000
+                  });
+              });
+              location = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+              setCurrentLocation(location);
+          } catch (err) {
+              console.error("Location access denied or failed:", err);
+              // alert("Location access is required for attendance logging. Please enable it."); 
+          }
+      }
+
+      const network = localStorage.getItem('verified_network') || 'Unknown';
+      logActivity(user.id, activityMessage, location, network);
   };
 
   const handleRegister = async (role: UserRole, profile: UserProfile) => {
@@ -173,7 +199,7 @@ const App: React.FC = () => {
               return;
           }
 
-          setPendingQRUser(user);
+          setPendingVerificationUser(user);
           setShowFaceLiveness(true);
       } else {
           alert("Invalid QR Code.");
@@ -181,38 +207,13 @@ const App: React.FC = () => {
   };
 
   const handleFaceSuccess = async () => {
-      if (!pendingQRUser) return;
+      if (!pendingVerificationUser) return;
 
-      const user = pendingQRUser;
+      const user = pendingVerificationUser;
       setShowFaceLiveness(false);
-      setPendingQRUser(null);
+      setPendingVerificationUser(null);
 
-      // Direct login after successful face verification
-      // Automatically redirect to Real-time Attendance dashboard as requested
-      const redirectPath = user.role === UserRole.STUDENT ? '/student/realtime' : '/employee/realtime';
-      window.location.hash = redirectPath;
-
-      // Refresh data to ensure latest attendance status is loaded before rendering
-      await refreshData();
-      setCurrentUser(user);
-      
-      let location: { lat: number; lng: number } | undefined = undefined;
-      try {
-          const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-              navigator.geolocation.getCurrentPosition(resolve, reject, { 
-                  enableHighAccuracy: true,
-                  maximumAge: 0,
-                  timeout: 10000
-              });
-          });
-          location = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-          setCurrentLocation(location);
-      } catch (err) {
-          console.error("Location access failed:", err);
-      }
-      
-      const network = localStorage.getItem('verified_network') || 'Unknown';
-      logActivity(user.id, `${user.role} logged in via QR Code & Biometrics`, location, network);
+      completeLogin(user, `${user.role} logged in via Biometrics`);
   };
 
 
@@ -296,11 +297,11 @@ const App: React.FC = () => {
                     onClose={() => setIsQRScannerOpen(false)} 
                 />
             )}
-            {showFaceLiveness && pendingQRUser && pendingQRUser.profile.profilePicture && (
+            {showFaceLiveness && pendingVerificationUser && pendingVerificationUser.profile.profilePicture && (
                 <FaceLiveness 
-                    storedProfilePicture={pendingQRUser.profile.profilePicture}
+                    storedProfilePicture={pendingVerificationUser.profile.profilePicture}
                     onSuccess={handleFaceSuccess}
-                    onCancel={() => { setShowFaceLiveness(false); setPendingQRUser(null); }}
+                    onCancel={() => { setShowFaceLiveness(false); setPendingVerificationUser(null); }}
                 />
             )}
         </>

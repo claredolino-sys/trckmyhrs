@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Camera, ShieldCheck, ShieldAlert, Loader2, UserCheck, RefreshCw } from 'lucide-react';
-import { GoogleGenAI } from "@google/genai";
+import * as faceapi from '@vladmandic/face-api';
 
 interface FaceLivenessProps {
   storedProfilePicture: string; // Base64
@@ -12,13 +12,32 @@ export const FaceLiveness: React.FC<FaceLivenessProps> = ({ storedProfilePicture
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [status, setStatus] = useState<'initializing' | 'ready' | 'verifying' | 'success' | 'failed'>('initializing');
-  const [message, setMessage] = useState('Initializing camera...');
+  const [message, setMessage] = useState('Loading biometric models...');
   const [error, setError] = useState<string | null>(null);
+  const [modelsLoaded, setModelsLoaded] = useState(false);
 
   useEffect(() => {
-    startCamera();
+    loadModels();
     return () => stopCamera();
   }, []);
+
+  const loadModels = async () => {
+    try {
+      const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
+      await Promise.all([
+        faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
+        faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+        faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+        faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+      ]);
+      setModelsLoaded(true);
+      startCamera();
+    } catch (err) {
+      console.error("Failed to load face-api models", err);
+      setError("Failed to load biometric models. Please check your internet connection.");
+      setStatus('failed');
+    }
+  };
 
   const startCamera = async () => {
     try {
@@ -26,9 +45,20 @@ export const FaceLiveness: React.FC<FaceLivenessProps> = ({ storedProfilePicture
         throw new Error('Camera API not supported in this browser');
       }
       
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 720 }, height: { ideal: 720 } } });
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          facingMode: 'user', 
+          width: { ideal: 720 }, 
+          height: { ideal: 720 } 
+        } 
+      });
+      
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        // Ensure video plays
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current?.play().catch(e => console.error("Play error:", e));
+        };
         setStatus('ready');
         setMessage('Position your face in the frame');
         setError(null);
@@ -38,7 +68,7 @@ export const FaceLiveness: React.FC<FaceLivenessProps> = ({ storedProfilePicture
       let errorMessage = 'Could not access camera.';
       
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        errorMessage = 'Camera permission denied. Please allow camera access in your browser settings.';
+        errorMessage = 'Camera permission denied. Please click the camera icon in your browser address bar to allow access.';
       } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
         errorMessage = 'No camera found on this device.';
       } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
@@ -58,94 +88,87 @@ export const FaceLiveness: React.FC<FaceLivenessProps> = ({ storedProfilePicture
   };
 
   const captureAndVerify = async () => {
-    if (!videoRef.current || !canvasRef.current) return;
+    if (!videoRef.current || !modelsLoaded) return;
 
     setStatus('verifying');
-    setMessage('Verifying identity and liveness...');
-
-    const canvas = canvasRef.current;
-    const video = videoRef.current;
-    
-    // Capture a square frame from the center of the video
-    const size = Math.min(video.videoWidth, video.videoHeight);
-    canvas.width = size;
-    canvas.height = size;
-    
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    // Calculate crop to center
-    const sx = (video.videoWidth - size) / 2;
-    const sy = (video.videoHeight - size) / 2;
-
-    ctx.drawImage(video, sx, sy, size, size, 0, 0, size, size);
-    
-    const liveCapture = canvas.toDataURL('image/jpeg', 0.8);
-    const liveCaptureBase64 = liveCapture.split(',')[1];
-    const storedPicBase64 = storedProfilePicture.includes(',') ? storedProfilePicture.split(',')[1] : storedProfilePicture;
+    setMessage('Analyzing biometric data...');
+    setError(null);
 
     try {
-      // Check both process.env (from vite define) and import.meta.env (standard Vite)
-      const apiKey = process.env.GEMINI_API_KEY || (import.meta as any).env.VITE_GEMINI_API_KEY;
+      const video = videoRef.current;
       
-      if (!apiKey) {
-        throw new Error("Gemini API Key is missing. Please add GEMINI_API_KEY or VITE_GEMINI_API_KEY to your Vercel environment variables.");
+      // Ensure video is ready
+      if (video.readyState !== 4) {
+         await new Promise(resolve => setTimeout(resolve, 500)); // Wait a bit
       }
 
-      const ai = new GoogleGenAI({ apiKey });
+      // 1. Detect face in live video with retry
+      let liveDetection = null;
+      let attempts = 0;
+      const maxAttempts = 3;
+
+      while (!liveDetection && attempts < maxAttempts) {
+        // Try SSD MobileNet first (more accurate)
+        liveDetection = await faceapi.detectSingleFace(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 })).withFaceLandmarks().withFaceDescriptor();
+        
+        // If failed, try TinyFaceDetector (more robust/faster)
+        if (!liveDetection) {
+             liveDetection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+        }
+
+        if (!liveDetection) {
+            attempts++;
+            await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500ms between attempts
+        }
+      }
+
+      if (!liveDetection) {
+        throw new Error("No face detected. Please ensure good lighting, remove masks/glasses, and look directly at the camera.");
+      }
+
+      // 2. Detect face in stored profile picture
+      const img = new Image();
+      img.crossOrigin = "anonymous"; // Handle potential CORS if image is from external URL
+      img.src = storedProfilePicture;
       
-      const prompt = `
-        You are a strict biometric security system.
-        Compare the two provided images:
-        1. Reference Image (Stored Profile)
-        2. Candidate Image (Live Camera Capture)
-
-        Analyze for:
-        1. Identity Match: Is it the same person? (Ignore minor changes like glasses, hair style, or lighting).
-        2. Liveness: Is the Candidate Image a real person present in front of the camera? (Check for screen glare, moire patterns, flat 2D appearance, or holding a photo).
-
-        Output JSON ONLY:
-        {
-          "isSamePerson": boolean,
-          "isLive": boolean,
-          "confidence": number (0.0 to 1.0),
-          "reason": "Brief explanation of the decision"
-        }
-      `;
-
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash-image", // Using a model known for good image handling
-        contents: {
-          parts: [
-            { text: prompt },
-            { inlineData: { mimeType: "image/jpeg", data: storedPicBase64 } },
-            { inlineData: { mimeType: "image/jpeg", data: liveCaptureBase64 } }
-          ]
-        },
-        config: {
-          responseMimeType: "application/json"
-        }
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = () => reject(new Error("Failed to load profile picture"));
       });
-
-      let responseText = response.text || '{}';
-      responseText = responseText.replace(/```json\n?|\n?```/g, '').trim();
       
-      console.log("Biometric Result:", responseText); // Debugging
+      // Try SSD first for stored image
+      let storedDetection = await faceapi.detectSingleFace(img, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 })).withFaceLandmarks().withFaceDescriptor();
+      
+      // Fallback to Tiny if needed
+      if (!storedDetection) {
+          storedDetection = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+      }
 
-      const result = JSON.parse(responseText);
+      if (!storedDetection) {
+        throw new Error("No face detected in your registered profile picture. Please contact Admin to update your photo.");
+      }
 
-      // Stricter check
-      if (result.isSamePerson && result.isLive && result.confidence > 0.75) {
+      // 3. Compare descriptors (Euclidean distance)
+      const distance = faceapi.euclideanDistance(liveDetection.descriptor, storedDetection.descriptor);
+      
+      // Threshold typically 0.6 for verification
+      const threshold = 0.55; 
+      const isMatch = distance < threshold;
+
+      console.log(`Face Match Distance: ${distance} (Threshold: ${threshold})`);
+
+      if (isMatch) {
         setStatus('success');
         setMessage('Identity verified successfully!');
         setTimeout(onSuccess, 1500);
       } else {
         setStatus('failed');
-        setError(result.reason || 'Verification failed. Face did not match or liveness check failed.');
+        setError('Verification failed. Face does not match profile photo.');
       }
+
     } catch (err: any) {
       console.error('Verification error:', err);
-      setError(err.message || 'An error occurred during verification. Please try again.');
+      setError(err.message || 'An error occurred during verification.');
       setStatus('failed');
     }
   };
@@ -171,8 +194,14 @@ export const FaceLiveness: React.FC<FaceLivenessProps> = ({ storedProfilePicture
               muted 
               className={`w-full h-full object-cover ${status === 'verifying' ? 'opacity-50' : ''}`}
             />
-            <canvas ref={canvasRef} className="hidden" />
             
+            {status === 'initializing' && (
+               <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/10 backdrop-blur-[1px]">
+                <Loader2 className="w-8 h-8 text-blue-500 animate-spin mb-2" />
+                <span className="text-xs font-bold text-slate-600">Loading Models...</span>
+              </div>
+            )}
+
             {status === 'verifying' && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/20">
                 <Loader2 className="w-12 h-12 text-white animate-spin mb-4" />
@@ -218,11 +247,11 @@ export const FaceLiveness: React.FC<FaceLivenessProps> = ({ storedProfilePicture
             ) : (
               <button
                 onClick={captureAndVerify}
-                disabled={status !== 'ready'}
+                disabled={status !== 'ready' || !modelsLoaded}
                 className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold flex items-center justify-center hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Camera className="w-4 h-4 mr-2" />
-                Verify Identity
+                {modelsLoaded ? 'Verify Identity' : 'Loading...'}
               </button>
             )}
             <button
@@ -236,7 +265,7 @@ export const FaceLiveness: React.FC<FaceLivenessProps> = ({ storedProfilePicture
 
         <div className="bg-slate-50 p-4 border-t border-slate-100 text-center">
           <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">
-            Powered by Gemini Vision Biometrics
+            Powered by FaceAPI.js (Local Processing)
           </p>
         </div>
       </div>
