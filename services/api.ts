@@ -123,8 +123,43 @@ export const api = {
     init: async () => {
         if (isSupabaseActive()) {
             console.log('TrackMyHours: Using Supabase backend');
+            // Check if any admin exists
+            const { count, error } = await supabase
+                .from('profiles')
+                .select('*', { count: 'exact', head: true })
+                .eq('role', UserRole.ADMIN);
+            
+            if (!error && count === 0) {
+                console.log('Seeding default admin to Supabase...');
+                const defaultAdmin: User = {
+                    id: 'admin-default',
+                    role: UserRole.ADMIN,
+                    profile: {
+                        name: 'Administrator',
+                        username: 'admin123',
+                        password: '123456',
+                        completedHours: 0
+                    }
+                };
+                await supabase.from('profiles').insert([mapUserToProfile(defaultAdmin)]);
+            }
         } else {
             console.log('TrackMyHours: Using LocalStorage backend (Supabase credentials missing)');
+            const admins = getLocal<User[]>(KEYS.ADMINS, []);
+            if (admins.length === 0) {
+                console.log('Seeding default admin to LocalStorage...');
+                const defaultAdmin: User = {
+                    id: 'admin-default',
+                    role: UserRole.ADMIN,
+                    profile: {
+                        name: 'Administrator',
+                        username: 'admin123',
+                        password: '123456',
+                        completedHours: 0
+                    }
+                };
+                setLocal(KEYS.ADMINS, [defaultAdmin]);
+            }
         }
     },
 
