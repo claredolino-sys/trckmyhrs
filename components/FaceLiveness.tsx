@@ -85,9 +85,11 @@ export const FaceLiveness: React.FC<FaceLivenessProps> = ({ storedProfilePicture
     const storedPicBase64 = storedProfilePicture.includes(',') ? storedProfilePicture.split(',')[1] : storedProfilePicture;
 
     try {
-      const apiKey = process.env.GEMINI_API_KEY;
+      // Check both process.env (from vite define) and import.meta.env (standard Vite)
+      const apiKey = process.env.GEMINI_API_KEY || (import.meta as any).env.VITE_GEMINI_API_KEY;
+      
       if (!apiKey) {
-        throw new Error("Gemini API Key is missing. Please check your configuration.");
+        throw new Error("Gemini API Key is missing. Please add GEMINI_API_KEY or VITE_GEMINI_API_KEY to your Vercel environment variables.");
       }
 
       const ai = new GoogleGenAI({ apiKey });
