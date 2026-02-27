@@ -188,9 +188,12 @@ const App: React.FC = () => {
       setPendingQRUser(null);
 
       // Direct login after successful face verification
+      // Automatically redirect to Real-time Attendance dashboard as requested
       const redirectPath = user.role === UserRole.STUDENT ? '/student/realtime' : '/employee/realtime';
       window.location.hash = redirectPath;
 
+      // Refresh data to ensure latest attendance status is loaded before rendering
+      await refreshData();
       setCurrentUser(user);
       
       let location: { lat: number; lng: number } | undefined = undefined;
