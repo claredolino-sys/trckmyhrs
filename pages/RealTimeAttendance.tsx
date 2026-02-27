@@ -65,7 +65,19 @@ export const RealTimeAttendance: React.FC<RealTimeAttendanceProps> = ({ user, on
         },
         (error) => {
           console.error("Geolocation error:", error);
-          setLocationError("Unable to retrieve your location. Please enable location services.");
+          let msg = "Unable to retrieve your location.";
+          switch(error.code) {
+            case error.PERMISSION_DENIED:
+              msg = "Location access denied. Please enable location services in your browser settings.";
+              break;
+            case error.POSITION_UNAVAILABLE:
+              msg = "Location information is unavailable.";
+              break;
+            case error.TIMEOUT:
+              msg = "The request to get user location timed out.";
+              break;
+          }
+          setLocationError(msg);
         },
         { 
           enableHighAccuracy: true,

@@ -26,9 +26,17 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
     setError(null);
     try {
       const scannerId = "qr-reader";
-      if (!scannerRef.current) {
-        scannerRef.current = new Html5Qrcode(scannerId);
+      
+      // Ensure previous instance is cleared
+      if (scannerRef.current) {
+        if (scannerRef.current.isScanning) {
+            await scannerRef.current.stop();
+        }
+        scannerRef.current.clear();
+        scannerRef.current = null;
       }
+
+      scannerRef.current = new Html5Qrcode(scannerId);
 
       await scannerRef.current.start(
         { facingMode: "environment" },
@@ -53,9 +61,19 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
       
       setPermissionGranted(true);
       setIsScanning(true);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to start scanner", err);
-      setError("Camera access denied or unavailable. Please check your permissions.");
+      let errorMessage = "Camera access denied or unavailable.";
+      
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        errorMessage = "Camera permission denied. Please allow camera access.";
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        errorMessage = "No camera found on this device.";
+      } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+        errorMessage = "Camera is already in use.";
+      }
+      
+      setError(errorMessage);
       setPermissionGranted(false);
     }
   };

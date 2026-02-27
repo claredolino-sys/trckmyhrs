@@ -22,15 +22,30 @@ export const FaceLiveness: React.FC<FaceLivenessProps> = ({ storedProfilePicture
 
   const startCamera = async () => {
     try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Camera API not supported in this browser');
+      }
+      
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         setStatus('ready');
         setMessage('Position your face in the frame');
+        setError(null);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Camera error:', err);
-      setError('Could not access camera. Please ensure permissions are granted.');
+      let errorMessage = 'Could not access camera.';
+      
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        errorMessage = 'Camera permission denied. Please allow camera access in your browser settings.';
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        errorMessage = 'No camera found on this device.';
+      } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+        errorMessage = 'Camera is already in use by another application.';
+      }
+
+      setError(errorMessage);
       setStatus('failed');
     }
   };
@@ -175,7 +190,12 @@ export const FaceLiveness: React.FC<FaceLivenessProps> = ({ storedProfilePicture
           <div className="flex space-x-3">
             {status === 'failed' ? (
               <button
-                onClick={() => { setStatus('ready'); setError(null); setMessage('Position your face in the frame'); }}
+                onClick={() => { 
+                  setStatus('initializing'); 
+                  setError(null); 
+                  setMessage('Initializing camera...'); 
+                  startCamera(); 
+                }}
                 className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold flex items-center justify-center hover:bg-slate-800 transition-colors"
               >
                 <RefreshCw className="w-4 h-4 mr-2" />
