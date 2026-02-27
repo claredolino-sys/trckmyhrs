@@ -193,21 +193,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onRegister, onResetPasswo
             )}
             
             <div className="text-center mt-4">
-                {isRegistering ? (
-                    <p className="text-sm text-gray-600">
-                        Already have an account?{' '}
-                        <button type="button" onClick={() => setIsRegistering(false)} className="text-brand-600 font-medium hover:underline">
-                            Sign In
-                        </button>
-                    </p>
-                ) : (
-                    <p className="text-sm text-gray-600">
-                        Don't have an account?{' '}
-                        <button type="button" onClick={() => setIsRegistering(true)} className="text-brand-600 font-medium hover:underline">
-                            Create Account
-                        </button>
-                    </p>
-                )}
+                {/* Registration removed as per request. Only Admin can create accounts. */}
             </div>
           </form>
         </div>
