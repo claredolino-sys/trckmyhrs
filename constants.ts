@@ -10,5 +10,8 @@ export const DEPARTURE_TIME_LIMIT = "17:00"; // 5 PM
 
 export const ALLOWED_WIFI = [
   { name: "GlobeAtHome_E863F_5", ip: "222.127.77.195" },
-  { name: "PLDTHOMEFIBR5G11a58", ip: "124.105.78.208" }
+  { name: "PLDTHOMEFIBR5G11a58", ip: "124.105.78.208" },
+  { name: "GlobeAtHome_E863F_2.4", ip: "222.127.77.195" },
+  { name: "PLDTHOMEFIBR11a58", ip: "124.105.78.208" },
+  { name: "dlink", ip: "222.127.77.195" }
 ];

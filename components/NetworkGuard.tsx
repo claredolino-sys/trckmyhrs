@@ -4,11 +4,13 @@ import { ALLOWED_WIFI } from '../constants';
 import { UserRole } from '../types';
 
 interface NetworkGuardProps {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   userRole?: UserRole;
+  onSuccess?: () => void;
+  onCancel?: () => void;
 }
 
-export const NetworkGuard: React.FC<NetworkGuardProps> = ({ children, userRole }) => {
+export const NetworkGuard: React.FC<NetworkGuardProps> = ({ children, userRole, onSuccess, onCancel }) => {
   const [status, setStatus] = useState<'scanning' | 'denied' | 'granted'>('scanning');
   const [detectedNetwork, setDetectedNetwork] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -53,8 +55,14 @@ export const NetworkGuard: React.FC<NetworkGuardProps> = ({ children, userRole }
     verifyNetwork();
   }, [userRole]);
 
+  useEffect(() => {
+    if (status === 'granted' && onSuccess) {
+      onSuccess();
+    }
+  }, [status, onSuccess]);
+
   if (status === 'granted') {
-    return <>{children}</>;
+    return children ? <>{children}</> : null;
   }
 
   return (
@@ -136,6 +144,15 @@ export const NetworkGuard: React.FC<NetworkGuardProps> = ({ children, userRole }
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Retry Automatic Scan
               </button>
+              
+              {onCancel && (
+                <button 
+                  onClick={onCancel}
+                  className="w-full flex items-center justify-center py-2 text-sm font-medium text-red-400 hover:text-red-600 transition-colors mt-2"
+                >
+                  Cancel Login
+                </button>
+              )}
             </>
           )}
         </div>

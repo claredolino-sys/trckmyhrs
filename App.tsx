@@ -40,6 +40,7 @@ const App: React.FC = () => {
   // QR & Biometric State
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
   const [showFaceLiveness, setShowFaceLiveness] = useState(false);
+  const [showNetworkCheck, setShowNetworkCheck] = useState(false);
   const [pendingVerificationUser, setPendingVerificationUser] = useState<User | null>(null);
   
   // Data State (Fetched from API)
@@ -99,11 +100,18 @@ const App: React.FC = () => {
                   return;
               }
               setPendingVerificationUser(user);
-              setShowFaceLiveness(true);
+              // Start with Network Check
+              setShowNetworkCheck(true);
           }
       } else {
           alert("Invalid credentials.");
       }
+  };
+
+  const handleNetworkSuccess = () => {
+      setShowNetworkCheck(false);
+      // After network check, proceed to Face Liveness
+      setShowFaceLiveness(true);
   };
 
   const completeLogin = async (user: User, activityMessage: string) => {
@@ -200,7 +208,7 @@ const App: React.FC = () => {
           }
 
           setPendingVerificationUser(user);
-          setShowFaceLiveness(true);
+          setShowNetworkCheck(true);
       } else {
           alert("Invalid QR Code.");
       }
@@ -296,6 +304,15 @@ const App: React.FC = () => {
                     onScan={handleQRScan} 
                     onClose={() => setIsQRScannerOpen(false)} 
                 />
+            )}
+            {showNetworkCheck && pendingVerificationUser && (
+                <div className="fixed inset-0 z-[100] bg-white">
+                    <NetworkGuard 
+                        userRole={pendingVerificationUser.role}
+                        onSuccess={handleNetworkSuccess}
+                        onCancel={() => { setShowNetworkCheck(false); setPendingVerificationUser(null); }}
+                    />
+                </div>
             )}
             {showFaceLiveness && pendingVerificationUser && pendingVerificationUser.profile.profilePicture && (
                 <FaceLiveness 
