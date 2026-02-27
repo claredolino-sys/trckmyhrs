@@ -109,20 +109,6 @@ export const NetworkGuard: React.FC<NetworkGuardProps> = ({ children, userRole }
               </div>
 
               <div className="space-y-3">
-                <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest text-center">Required Networks</p>
-                <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl">
-                  <ul className="space-y-2">
-                    {ALLOWED_WIFI.map(w => (
-                      <li key={w.name} className="flex items-center text-xs text-slate-600">
-                        <QrCode className="w-3 h-3 mr-2 text-slate-400" />
-                        <span className="font-mono">{w.name}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-
-              <div className="space-y-3">
                 <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest text-center">Your Current Connection</p>
                 <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex items-center justify-between">
                   <div className="flex items-center">

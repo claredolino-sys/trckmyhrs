@@ -26,7 +26,7 @@ export const FaceLiveness: React.FC<FaceLivenessProps> = ({ storedProfilePicture
         throw new Error('Camera API not supported in this browser');
       }
       
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 720 }, height: { ideal: 720 } } });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         setStatus('ready');
@@ -65,40 +65,54 @@ export const FaceLiveness: React.FC<FaceLivenessProps> = ({ storedProfilePicture
 
     const canvas = canvasRef.current;
     const video = videoRef.current;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    
+    // Capture a square frame from the center of the video
+    const size = Math.min(video.videoWidth, video.videoHeight);
+    canvas.width = size;
+    canvas.height = size;
+    
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    ctx.drawImage(video, 0, 0);
+    // Calculate crop to center
+    const sx = (video.videoWidth - size) / 2;
+    const sy = (video.videoHeight - size) / 2;
+
+    ctx.drawImage(video, sx, sy, size, size, 0, 0, size, size);
+    
     const liveCapture = canvas.toDataURL('image/jpeg', 0.8);
     const liveCaptureBase64 = liveCapture.split(',')[1];
-    const storedPicBase64 = storedProfilePicture.split(',')[1] || storedProfilePicture;
+    const storedPicBase64 = storedProfilePicture.includes(',') ? storedProfilePicture.split(',')[1] : storedProfilePicture;
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        throw new Error("Gemini API Key is missing. Please check your configuration.");
+      }
+
+      const ai = new GoogleGenAI({ apiKey });
       
       const prompt = `
-        You are a biometric security expert. 
-        I am providing two images:
-        1. A stored profile picture (Reference).
-        2. A live capture from a webcam (Candidate).
-        
-        Tasks:
-        1. Face Match: Determine if the person in both images is the same individual.
-        2. Liveness Check: Determine if the Candidate image looks like a real, live person in front of a camera, rather than a photo of a photo, a screen, or a mask.
-        
-        Respond ONLY in JSON format with the following structure:
+        You are a strict biometric security system.
+        Compare the two provided images:
+        1. Reference Image (Stored Profile)
+        2. Candidate Image (Live Camera Capture)
+
+        Analyze for:
+        1. Identity Match: Is it the same person? (Ignore minor changes like glasses, hair style, or lighting).
+        2. Liveness: Is the Candidate Image a real person present in front of the camera? (Check for screen glare, moire patterns, flat 2D appearance, or holding a photo).
+
+        Output JSON ONLY:
         {
           "isSamePerson": boolean,
           "isLive": boolean,
-          "confidence": number (0-1),
-          "reason": "short explanation"
+          "confidence": number (0.0 to 1.0),
+          "reason": "Brief explanation of the decision"
         }
       `;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-2.5-flash-image", // Using a model known for good image handling
         contents: {
           parts: [
             { text: prompt },
@@ -112,22 +126,24 @@ export const FaceLiveness: React.FC<FaceLivenessProps> = ({ storedProfilePicture
       });
 
       let responseText = response.text || '{}';
-      // Clean up markdown code blocks if present
       responseText = responseText.replace(/```json\n?|\n?```/g, '').trim();
       
+      console.log("Biometric Result:", responseText); // Debugging
+
       const result = JSON.parse(responseText);
 
-      if (result.isSamePerson && result.isLive && result.confidence > 0.7) {
+      // Stricter check
+      if (result.isSamePerson && result.isLive && result.confidence > 0.75) {
         setStatus('success');
         setMessage('Identity verified successfully!');
         setTimeout(onSuccess, 1500);
       } else {
         setStatus('failed');
-        setError(result.reason || 'Verification failed. Please try again.');
+        setError(result.reason || 'Verification failed. Face did not match or liveness check failed.');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Verification error:', err);
-      setError('An error occurred during verification. Please try again.');
+      setError(err.message || 'An error occurred during verification. Please try again.');
       setStatus('failed');
     }
   };
@@ -144,7 +160,8 @@ export const FaceLiveness: React.FC<FaceLivenessProps> = ({ storedProfilePicture
         </div>
 
         <div className="p-6 space-y-6">
-          <div className="relative aspect-video bg-slate-100 rounded-2xl overflow-hidden border-2 border-slate-200 shadow-inner">
+          {/* 1:1 Aspect Ratio Container */}
+          <div className="relative aspect-square bg-slate-100 rounded-full overflow-hidden border-4 border-slate-200 shadow-inner mx-auto w-64 h-64">
             <video 
               ref={videoRef} 
               autoPlay 
@@ -157,9 +174,6 @@ export const FaceLiveness: React.FC<FaceLivenessProps> = ({ storedProfilePicture
             {status === 'verifying' && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/20">
                 <Loader2 className="w-12 h-12 text-white animate-spin mb-4" />
-                <div className="w-48 h-1 bg-white/20 rounded-full overflow-hidden">
-                  <div className="bg-blue-500 h-full animate-[scan_2s_linear_infinite]"></div>
-                </div>
               </div>
             )}
 
@@ -174,16 +188,14 @@ export const FaceLiveness: React.FC<FaceLivenessProps> = ({ storedProfilePicture
                 <ShieldAlert className="w-20 h-20 text-red-500" />
               </div>
             )}
-            
-            {/* Face Guide Overlay */}
-            <div className="absolute inset-0 border-[40px] border-slate-900/40 pointer-events-none">
-                <div className="w-full h-full border-2 border-dashed border-white/50 rounded-[100px]"></div>
-            </div>
           </div>
 
           <div className="text-center">
             <p className={`text-sm font-medium ${status === 'failed' ? 'text-red-600' : 'text-slate-600'}`}>
               {status === 'failed' ? error : message}
+            </p>
+            <p className="text-xs text-slate-400 mt-2">
+                Ensure your face is clearly visible and well-lit.
             </p>
           </div>
 
@@ -191,10 +203,10 @@ export const FaceLiveness: React.FC<FaceLivenessProps> = ({ storedProfilePicture
             {status === 'failed' ? (
               <button
                 onClick={() => { 
-                  setStatus('initializing'); 
+                  setStatus('ready'); 
                   setError(null); 
-                  setMessage('Initializing camera...'); 
-                  startCamera(); 
+                  setMessage('Position your face in the frame'); 
+                  startCamera(); // Ensure camera is running
                 }}
                 className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold flex items-center justify-center hover:bg-slate-800 transition-colors"
               >
@@ -208,7 +220,7 @@ export const FaceLiveness: React.FC<FaceLivenessProps> = ({ storedProfilePicture
                 className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold flex items-center justify-center hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Camera className="w-4 h-4 mr-2" />
-                Capture & Verify
+                Verify Identity
               </button>
             )}
             <button
@@ -226,13 +238,6 @@ export const FaceLiveness: React.FC<FaceLivenessProps> = ({ storedProfilePicture
           </p>
         </div>
       </div>
-
-      <style>{`
-        @keyframes scan {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
-        }
-      `}</style>
     </div>
   );
 };
