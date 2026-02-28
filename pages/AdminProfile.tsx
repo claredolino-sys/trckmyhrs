@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { User } from '../types';
+import { User, UserRole } from '../types';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Shield, Key, UserCircle } from 'lucide-react';
+import { api } from '../services/api';
 
 interface AdminProfileProps {
   user: User;
@@ -17,7 +18,7 @@ export const AdminProfile: React.FC<AdminProfileProps> = ({ user, onUpdate }) =>
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
@@ -28,10 +29,14 @@ export const AdminProfile: React.FC<AdminProfileProps> = ({ user, onUpdate }) =>
             setError("Please enter your current password to make changes.");
             return;
         }
-        if (currentPassword !== user.profile.password) {
+        
+        // Verify current password against the backend
+        const verifiedUser = await api.auth.login(UserRole.ADMIN, user.profile.username, currentPassword);
+        if (!verifiedUser) {
              setError("Incorrect current password.");
              return;
         }
+
         if (newPassword !== confirmPassword) {
             setError("New passwords do not match.");
             return;
@@ -88,8 +93,8 @@ export const AdminProfile: React.FC<AdminProfileProps> = ({ user, onUpdate }) =>
                         <Input 
                             label="Username" 
                             value={profile.username} 
-                            disabled
-                            className="bg-gray-100 text-gray-500 cursor-not-allowed"
+                            onChange={e => setProfile({...profile, username: e.target.value})}
+                            required
                         />
                     </div>
 

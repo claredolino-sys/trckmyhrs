@@ -1,3 +1,5 @@
+import { ALLOWED_WIFI } from '../constants';
+
 export const calculateMinutes = (start: string, end: string): number => {
   if (!start || !end) return 0;
   
@@ -65,4 +67,23 @@ export const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
     return R * c; // in metres
+};
+
+export const detectNetwork = async (): Promise<{ name: string, ip: string, isAllowed: boolean }> => {
+    try {
+        const response = await fetch('https://api.ipify.org?format=json');
+        if (!response.ok) throw new Error('Network response was not ok');
+        const data = await response.json();
+        const ip = data.ip;
+        
+        const allowed = ALLOWED_WIFI.find(w => w.ip === ip);
+        if (allowed) {
+            return { name: allowed.name, ip, isAllowed: true };
+        } else {
+            return { name: 'Other Network Connection', ip, isAllowed: false };
+        }
+    } catch (error) {
+        console.error("Failed to detect network:", error);
+        return { name: 'Other Network Connection', ip: 'Unknown', isAllowed: false };
+    }
 };

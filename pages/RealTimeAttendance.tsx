@@ -7,7 +7,7 @@ import { api } from '../services/api';
 
 interface RealTimeAttendanceProps {
   user: User;
-  onSave: (record: AttendanceRecord) => void;
+  onSave: (record: AttendanceRecord, location?: { lat: number; lng: number }) => void;
   existingRecord?: AttendanceRecord;
 }
 
@@ -152,7 +152,23 @@ export const RealTimeAttendance: React.FC<RealTimeAttendanceProps> = ({ user, on
     newRecord.totalDailyMinutes = totalNet;
     newRecord.isLocked = !!(newRecord.amIn && newRecord.amOut && newRecord.pmIn && newRecord.pmOut);
     
-    onSave(newRecord);
+    // Capture location before saving
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const { latitude, longitude } = position.coords;
+                onSave(newRecord, { lat: latitude, lng: longitude });
+            },
+            (error) => {
+                console.error("Error getting location for clock action:", error);
+                // Fallback: save without specific location (App.tsx might use stale location or none)
+                onSave(newRecord);
+            },
+            { enableHighAccuracy: true, timeout: 5000 }
+        );
+    } else {
+        onSave(newRecord);
+    }
   };
 
   const getTimeDisplay = (time24: string) => {

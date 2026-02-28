@@ -96,7 +96,7 @@ export const AttendanceInput: React.FC<AttendanceInputProps> = ({ user, onSave, 
   return (
     <div className="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow-sm border border-gray-200">
       <div className="mb-6 border-b pb-4">
-        <h2 className="text-xl font-bold text-gray-900">Log Past Attendance</h2>
+        <h2 className="text-xl font-bold text-gray-900">Input Past Time</h2>
         <p className="text-sm text-gray-500">Record attendance for previous dates.</p>
       </div>
 

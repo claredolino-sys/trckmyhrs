@@ -28,7 +28,7 @@ import { QRScanner } from './components/QRScanner';
 import { FaceLiveness } from './components/FaceLiveness';
 
 import { User, UserRole, AttendanceRecord, ActivityLog, UserProfile, ADMIN_IN_CHARGE } from './types';
-import { formatDateForInput } from './services/utils';
+import { formatDateForInput, detectNetwork } from './services/utils';
 import { useActivity } from './contexts/ActivityContext';
 import { api } from './services/api';
 
@@ -92,6 +92,9 @@ const App: React.FC = () => {
       const user = await api.auth.login(role, username, password);
       if (user) {
           if (user.role === UserRole.ADMIN) {
+              // Detect network for Admin
+              const networkInfo = await detectNetwork();
+              localStorage.setItem('verified_network', networkInfo.name);
               completeLogin(user, 'Admin logged in');
           } else {
               // Check for profile picture for biometric verification
@@ -235,12 +238,12 @@ const App: React.FC = () => {
       await refreshData();
   };
 
-  const handleSaveAttendance = async (record: AttendanceRecord) => {
+  const handleSaveAttendance = async (record: AttendanceRecord, location?: { lat: number; lng: number }) => {
       // The API now handles hours recalculation automatically!
       const isUpdate = attendanceRecords.some(r => r.id === record.id);
       await api.attendance.save(record);
       
-      logActivity(record.userId, `${isUpdate ? 'Updated' : 'Submitted'} attendance for ${record.date}`, currentLocation);
+      logActivity(record.userId, `${isUpdate ? 'Updated' : 'Submitted'} attendance for ${record.date}`, location || currentLocation);
       await refreshData(); // Fetch updated records and updated user hours
   };
 

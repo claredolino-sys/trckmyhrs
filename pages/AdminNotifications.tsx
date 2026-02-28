@@ -151,8 +151,15 @@ export const AdminNotifications: React.FC = () => {
                                                 </div>
                                                 {notification.location && (
                                                     <div className="flex items-center">
-                                                        <MapPin className="w-3.5 h-3.5 mr-1" />
-                                                        {notification.location.lat.toFixed(4)}, {notification.location.lng.toFixed(4)}
+                                                        <a 
+                                                            href={`https://www.google.com/maps?q=${notification.location.lat},${notification.location.lng}`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="flex items-center text-brand-600 hover:text-brand-700 hover:underline"
+                                                        >
+                                                            <MapPin className="w-3.5 h-3.5 mr-1" />
+                                                            {notification.location.lat.toFixed(4)}, {notification.location.lng.toFixed(4)}
+                                                        </a>
                                                     </div>
                                                 )}
                                             </div>

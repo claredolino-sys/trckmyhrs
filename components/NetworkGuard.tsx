@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Wifi, WifiOff, ShieldCheck, ShieldAlert, Loader2, RefreshCw, QrCode } from 'lucide-react';
-import { ALLOWED_WIFI } from '../constants';
+import { detectNetwork } from '../services/utils';
 import { UserRole } from '../types';
 
 interface NetworkGuardProps {
@@ -17,37 +17,39 @@ export const NetworkGuard: React.FC<NetworkGuardProps> = ({ children, userRole, 
   const [currentIp, setCurrentIp] = useState<string | null>(null);
 
   const verifyNetwork = async () => {
-    // If user is Admin, bypass network check immediately
-    if (userRole === UserRole.ADMIN) {
-      setStatus('granted');
-      return;
-    }
-
     setStatus('scanning');
     setError(null);
     
     try {
-      // Fetch public IP
-      const response = await fetch('https://api.ipify.org?format=json');
-      const data = await response.json();
-      const ip = data.ip;
+      const { name, ip, isAllowed } = await detectNetwork();
       setCurrentIp(ip);
 
-      // Check if current IP matches any allowed WiFi network
-      const allowed = ALLOWED_WIFI.find(w => w.ip === ip);
-      
-      if (allowed) {
-        setDetectedNetwork(allowed.name);
+      if (isAllowed) {
+        setDetectedNetwork(name);
         setStatus('granted');
-        localStorage.setItem('verified_network', allowed.name);
+        localStorage.setItem('verified_network', name);
       } else {
-        setStatus('denied');
-        localStorage.removeItem('verified_network');
+        if (userRole === UserRole.ADMIN) {
+            // Admin allowed on any network, but log it as 'Other Network Connection'
+            setDetectedNetwork(name);
+            setStatus('granted');
+            localStorage.setItem('verified_network', name);
+        } else {
+            setStatus('denied');
+            localStorage.removeItem('verified_network');
+        }
       }
     } catch (err) {
-      console.error("Failed to fetch IP:", err);
-      setError("Unable to verify network connection. Please check your internet.");
-      setStatus('denied');
+      console.error("Failed to verify network:", err);
+      if (userRole === UserRole.ADMIN) {
+          // Fallback for admin
+           setDetectedNetwork('Other Network Connection');
+           setStatus('granted');
+           localStorage.setItem('verified_network', 'Other Network Connection');
+      } else {
+          setError("Unable to verify network connection. Please check your internet.");
+          setStatus('denied');
+      }
     }
   };
 
