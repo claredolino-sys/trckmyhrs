@@ -11,13 +11,19 @@ interface NetworkGuardProps {
 }
 
 export const NetworkGuard: React.FC<NetworkGuardProps> = ({ children, userRole, onSuccess, onCancel }) => {
-  const [status, setStatus] = useState<'scanning' | 'denied' | 'granted'>('scanning');
+  // Admin is always granted immediately to avoid blocking/delay
+  const [status, setStatus] = useState<'scanning' | 'denied' | 'granted'>(
+    userRole === UserRole.ADMIN ? 'granted' : 'scanning'
+  );
   const [detectedNetwork, setDetectedNetwork] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [currentIp, setCurrentIp] = useState<string | null>(null);
 
   const verifyNetwork = async () => {
-    setStatus('scanning');
+    // Only show scanning state for non-admins
+    if (userRole !== UserRole.ADMIN) {
+        setStatus('scanning');
+    }
     setError(null);
     
     try {
@@ -26,13 +32,15 @@ export const NetworkGuard: React.FC<NetworkGuardProps> = ({ children, userRole, 
 
       if (isAllowed) {
         setDetectedNetwork(name);
-        setStatus('granted');
+        // Only update status if it's not already granted (for non-admins)
+        if (userRole !== UserRole.ADMIN) {
+            setStatus('granted');
+        }
         localStorage.setItem('verified_network', name);
       } else {
         if (userRole === UserRole.ADMIN) {
-            // Admin allowed on any network, but log it as 'Other Network Connection'
+            // Admin: Just log the network, don't change status (stay granted)
             setDetectedNetwork(name);
-            setStatus('granted');
             localStorage.setItem('verified_network', name);
         } else {
             setStatus('denied');
@@ -42,9 +50,7 @@ export const NetworkGuard: React.FC<NetworkGuardProps> = ({ children, userRole, 
     } catch (err) {
       console.error("Failed to verify network:", err);
       if (userRole === UserRole.ADMIN) {
-          // Fallback for admin
            setDetectedNetwork('Other Network Connection');
-           setStatus('granted');
            localStorage.setItem('verified_network', 'Other Network Connection');
       } else {
           setError("Unable to verify network connection. Please check your internet.");

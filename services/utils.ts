@@ -71,7 +71,12 @@ export const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2
 
 export const detectNetwork = async (): Promise<{ name: string, ip: string, isAllowed: boolean }> => {
     try {
-        const response = await fetch('https://api.ipify.org?format=json');
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
+        const response = await fetch('https://api.ipify.org?format=json', { signal: controller.signal });
+        clearTimeout(timeoutId);
+        
         if (!response.ok) throw new Error('Network response was not ok');
         const data = await response.json();
         const ip = data.ip;
