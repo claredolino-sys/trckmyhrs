@@ -130,35 +130,59 @@ export const api = {
                 .eq('role', UserRole.ADMIN);
             
             if (!error && count === 0) {
-                console.log('Seeding default admin to Supabase...');
-                const defaultAdmin: User = {
-                    id: 'admin-default',
-                    role: UserRole.ADMIN,
-                    profile: {
-                        name: 'Administrator',
-                        username: 'admin123',
-                        password: '123456',
-                        completedHours: 0
+                console.log('Seeding default admins to Supabase...');
+                const defaultAdmins: User[] = [
+                    {
+                        id: 'admin-default',
+                        role: UserRole.ADMIN,
+                        profile: {
+                            name: 'Administrator',
+                            username: 'admin123',
+                            password: '123456',
+                            completedHours: 0
+                        }
+                    },
+                    {
+                        id: 'admin-it',
+                        role: UserRole.ADMIN,
+                        profile: {
+                            name: 'IT Administrator',
+                            username: 'IT_Admin_1',
+                            password: 'password123', // Default password for IT_Admin_1
+                            completedHours: 0
+                        }
                     }
-                };
-                await supabase.from('profiles').insert([mapUserToProfile(defaultAdmin)]);
+                ];
+                await supabase.from('profiles').insert(defaultAdmins.map(mapUserToProfile));
             }
         } else {
             console.log('TrackMyHours: Using LocalStorage backend (Supabase credentials missing)');
             const admins = getLocal<User[]>(KEYS.ADMINS, []);
             if (admins.length === 0) {
-                console.log('Seeding default admin to LocalStorage...');
-                const defaultAdmin: User = {
-                    id: 'admin-default',
-                    role: UserRole.ADMIN,
-                    profile: {
-                        name: 'Administrator',
-                        username: 'admin123',
-                        password: '123456',
-                        completedHours: 0
+                console.log('Seeding default admins to LocalStorage...');
+                const defaultAdmins: User[] = [
+                    {
+                        id: 'admin-default',
+                        role: UserRole.ADMIN,
+                        profile: {
+                            name: 'Administrator',
+                            username: 'admin123',
+                            password: '123456',
+                            completedHours: 0
+                        }
+                    },
+                    {
+                        id: 'admin-it',
+                        role: UserRole.ADMIN,
+                        profile: {
+                            name: 'IT Administrator',
+                            username: 'IT_Admin_1',
+                            password: 'password123',
+                            completedHours: 0
+                        }
                     }
-                };
-                setLocal(KEYS.ADMINS, [defaultAdmin]);
+                ];
+                setLocal(KEYS.ADMINS, defaultAdmins);
             }
         }
     },
