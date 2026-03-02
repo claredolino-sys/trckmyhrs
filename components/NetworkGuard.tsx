@@ -20,10 +20,11 @@ export const NetworkGuard: React.FC<NetworkGuardProps> = ({ children, userRole, 
   const [currentIp, setCurrentIp] = useState<string | null>(null);
 
   const verifyNetwork = async () => {
+    // Admin is always granted immediately to avoid blocking/delay - no network check needed
+    if (userRole === UserRole.ADMIN) return;
+
     // Only show scanning state for non-admins
-    if (userRole !== UserRole.ADMIN) {
-        setStatus('scanning');
-    }
+    setStatus('scanning');
     setError(null);
     
     try {
@@ -32,30 +33,16 @@ export const NetworkGuard: React.FC<NetworkGuardProps> = ({ children, userRole, 
 
       if (isAllowed) {
         setDetectedNetwork(name);
-        // Only update status if it's not already granted (for non-admins)
-        if (userRole !== UserRole.ADMIN) {
-            setStatus('granted');
-        }
+        setStatus('granted');
         localStorage.setItem('verified_network', name);
       } else {
-        if (userRole === UserRole.ADMIN) {
-            // Admin: Just log the network, don't change status (stay granted)
-            setDetectedNetwork(name);
-            localStorage.setItem('verified_network', name);
-        } else {
-            setStatus('denied');
-            localStorage.removeItem('verified_network');
-        }
+        setStatus('denied');
+        localStorage.removeItem('verified_network');
       }
     } catch (err) {
       console.error("Failed to verify network:", err);
-      if (userRole === UserRole.ADMIN) {
-           setDetectedNetwork('Other Network Connection');
-           localStorage.setItem('verified_network', 'Other Network Connection');
-      } else {
-          setError("Unable to verify network connection. Please check your internet.");
-          setStatus('denied');
-      }
+      setError("Unable to verify network connection. Please check your internet.");
+      setStatus('denied');
     }
   };
 

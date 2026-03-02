@@ -28,7 +28,7 @@ import { QRScanner } from './components/QRScanner';
 import { FaceLiveness } from './components/FaceLiveness';
 
 import { User, UserRole, AttendanceRecord, ActivityLog, UserProfile, ADMIN_IN_CHARGE } from './types';
-import { formatDateForInput, detectNetwork } from './services/utils';
+import { formatDateForInput } from './services/utils';
 import { useActivity } from './contexts/ActivityContext';
 import { api } from './services/api';
 
@@ -94,9 +94,8 @@ const App: React.FC = () => {
       const user = await api.auth.login(role, username, password);
       if (user) {
           if (user.role === UserRole.ADMIN) {
-              // Detect network for Admin
-              const networkInfo = await detectNetwork();
-              localStorage.setItem('verified_network', networkInfo.name);
+              // Admin login - no network restrictions
+              localStorage.setItem('verified_network', 'Admin Connection');
               completeLogin(user, 'Admin logged in');
           } else {
               // Check for profile picture for biometric verification
