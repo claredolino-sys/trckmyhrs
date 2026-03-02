@@ -3,7 +3,7 @@ import { User, AttendanceRecord, ADMIN_IN_CHARGE } from '../types';
 import { Button } from '../components/Button';
 import { Download, FileText, Edit2, X, Check, Merge } from 'lucide-react';
 import { generateDTRPdf } from '../services/pdfService';
-import { getMonthName, getDaysInMonth, formatMinutesToHours, formatDateForInput } from '../services/utils';
+import { getMonthName, getDaysInMonth, formatMinutesToHours, formatDateForInput, formatTime12Hour, formatTime12HourNoPeriod } from '../services/utils';
 import { Input } from '../components/Input';
 
 interface DTRViewProps {
@@ -54,10 +54,10 @@ export const DTRView: React.FC<DTRViewProps> = ({ user, attendanceRecords, onSav
      // Determine display logic
      let isMerged = record?.isMerged || false;
      let remarks = record?.remarks || '';
-     let displayAmIn = record?.amIn || '';
-     let displayAmOut = record?.amOut || '';
-     let displayPmIn = record?.pmIn || '';
-     let displayPmOut = record?.pmOut || '';
+     let displayAmIn = formatTime12HourNoPeriod(record?.amIn || '');
+     let displayAmOut = formatTime12HourNoPeriod(record?.amOut || '');
+     let displayPmIn = formatTime12HourNoPeriod(record?.pmIn || '');
+     let displayPmOut = formatTime12HourNoPeriod(record?.pmOut || '');
      const undertimeMinutes = record?.undertimeMinutes || 0;
 
      // Accumulate total worked minutes

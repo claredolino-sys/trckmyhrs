@@ -181,7 +181,7 @@ export const RealTimeAttendance: React.FC<RealTimeAttendanceProps> = ({ user, on
         <div className="text-center py-8 bg-gradient-to-r from-brand-600 to-brand-700 rounded-2xl shadow-lg text-white px-4">
             <h2 className="text-xl md:text-2xl font-medium opacity-90">Current Time</h2>
             <div className="text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight my-4 font-mono break-all sm:break-normal">
-                {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                {currentTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })}
             </div>
             <div className="flex flex-col sm:flex-row items-center justify-center space-y-2 sm:space-y-0 sm:space-x-2 text-brand-100">
                 <Calendar className="w-5 h-5 hidden sm:block" />

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
+import { TimeInput } from '../components/TimeInput';
 import { calculateMinutes, formatMinutesToHours } from '../services/utils';
 import { AttendanceRecord, User } from '../types';
 import { AlertCircle, CheckCircle, Edit3 } from 'lucide-react';
@@ -138,18 +139,16 @@ export const AttendanceInput: React.FC<AttendanceInputProps> = ({ user, onSave, 
             {/* AM Session */}
             <div className={`space-y-4 p-4 rounded-lg border ${isLocked ? 'bg-gray-100 border-gray-200' : 'bg-blue-50 border-blue-100'}`}>
                 <h3 className={`font-semibold ${isLocked ? 'text-gray-500' : 'text-blue-900'}`}>AM Session</h3>
-                <Input 
+                <TimeInput 
                     label="Arrival (AM In)" 
-                    type="time" 
                     value={amIn} 
-                    onChange={e => setAmIn(e.target.value)}
+                    onChange={setAmIn}
                     disabled={isLocked}
                 />
-                <Input 
+                <TimeInput 
                     label="Departure (AM Out)" 
-                    type="time" 
                     value={amOut} 
-                    onChange={e => setAmOut(e.target.value)}
+                    onChange={setAmOut}
                     disabled={isLocked}
                 />
                 {!isLocked && (
@@ -162,18 +161,16 @@ export const AttendanceInput: React.FC<AttendanceInputProps> = ({ user, onSave, 
             {/* PM Session */}
             <div className={`space-y-4 p-4 rounded-lg border ${isLocked ? 'bg-gray-100 border-gray-200' : 'bg-orange-50 border-orange-100'}`}>
                 <h3 className={`font-semibold ${isLocked ? 'text-gray-500' : 'text-orange-900'}`}>PM Session</h3>
-                <Input 
+                <TimeInput 
                     label="Arrival (PM In)" 
-                    type="time" 
                     value={pmIn} 
-                    onChange={e => setPmIn(e.target.value)}
+                    onChange={setPmIn}
                     disabled={isLocked}
                 />
-                <Input 
+                <TimeInput 
                     label="Departure (PM Out)" 
-                    type="time" 
                     value={pmOut} 
-                    onChange={e => setPmOut(e.target.value)}
+                    onChange={setPmOut}
                     disabled={isLocked}
                 />
                  {!isLocked && (

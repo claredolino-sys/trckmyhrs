@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { AttendanceRecord, User, ADMIN_IN_CHARGE } from '../types';
+import { formatTime12HourNoPeriod } from './utils';
 
 export const generateDTRPdf = (user: User, records: AttendanceRecord[], month: string, year: string) => {
   // A4 size: 210mm x 297mm
@@ -125,10 +126,10 @@ export const generateDTRPdf = (user: User, records: AttendanceRecord[], month: s
             } else {
                  rowData = [
                     dayStr,
-                    record.amIn || '',
-                    record.amOut || '',
-                    record.pmIn || '',
-                    record.pmOut || '',
+                    formatTime12HourNoPeriod(record.amIn || ''),
+                    formatTime12HourNoPeriod(record.amOut || ''),
+                    formatTime12HourNoPeriod(record.pmIn || ''),
+                    formatTime12HourNoPeriod(record.pmOut || ''),
                     record.undertimeMinutes > 0 ? Math.floor(record.undertimeMinutes / 60) : '',
                     record.undertimeMinutes > 0 ? (record.undertimeMinutes % 60) : '',
                  ];

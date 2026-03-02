@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { User, AttendanceRecord, UserRole } from '../types';
-import { formatMinutesToHours, formatDateForInput } from '../services/utils';
+import { formatMinutesToHours, formatDateForInput, formatTime12Hour } from '../services/utils';
 import { Search, LayoutList, CalendarDays, CheckCircle2, AlertCircle, Users, Briefcase } from 'lucide-react';
 
 interface AdminAttendanceProps {
@@ -254,10 +254,10 @@ export const AdminAttendance: React.FC<AdminAttendanceProps> = ({ students, atte
                           <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{row.studentName}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-gray-500">{row.studentUsername}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-gray-900">
-                              {row.amIn} - {row.amOut}
+                              {formatTime12Hour(row.amIn)} - {formatTime12Hour(row.amOut)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-gray-900">
-                              {row.pmIn} - {row.pmOut}
+                              {formatTime12Hour(row.pmIn)} - {formatTime12Hour(row.pmOut)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap font-bold text-brand-700">
                               {formatMinutesToHours(row.totalDailyMinutes)}

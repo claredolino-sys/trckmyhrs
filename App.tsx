@@ -32,6 +32,8 @@ import { formatDateForInput, detectNetwork } from './services/utils';
 import { useActivity } from './contexts/ActivityContext';
 import { api } from './services/api';
 
+import { AdminAttendanceInput } from './pages/AdminAttendanceInput';
+
 const App: React.FC = () => {
   const { logs: activityLogs, logActivity, refreshLogs } = useActivity();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -336,12 +338,6 @@ const App: React.FC = () => {
       <Router>
         <Layout user={currentUser} onLogout={handleLogout}>
           <Routes>
-import { AdminAttendanceInput } from './pages/AdminAttendanceInput';
-
-// ... (imports)
-
-// ... inside App component ...
-
               {/* Student Routes */}
               {currentUser.role === UserRole.STUDENT && (
                   <>

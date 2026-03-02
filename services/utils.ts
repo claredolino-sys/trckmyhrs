@@ -54,6 +54,39 @@ export const formatTime12Hour = (time24: string): string => {
     return `${hours}:${m.toString().padStart(2, '0')} ${period}`;
 };
 
+export const formatTime12HourNoPeriod = (time24: string): string => {
+    if (!time24) return '';
+    const [h, m] = time24.split(':').map(Number);
+    const hours = h % 12 || 12;
+    return `${hours}:${m.toString().padStart(2, '0')}`;
+};
+
+export const parseTime = (val: any): string => {
+    if (!val) return '';
+    const str = String(val).trim();
+    
+    // Handle "08:00" or "8:00" (24-hour)
+    if (/^\d{1,2}:\d{2}$/.test(str)) {
+        const [h, m] = str.split(':').map(Number);
+        return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+    }
+    
+    // Handle "8:00 AM" or "08:00 PM" (12-hour)
+    const match = str.match(/(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)/i);
+    if (match) {
+        let [_, h, m, ap] = match;
+        let hour = parseInt(h, 10);
+        const isPM = ap.toUpperCase() === 'PM';
+        
+        if (isPM && hour < 12) hour += 12;
+        if (!isPM && hour === 12) hour = 0;
+        
+        return `${hour.toString().padStart(2, '0')}:${m}`;
+    }
+    
+    return str;
+};
+
 export const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
     const R = 6371e3; // metres
     const φ1 = lat1 * Math.PI / 180;
@@ -87,8 +120,12 @@ export const detectNetwork = async (): Promise<{ name: string, ip: string, isAll
         } else {
             return { name: 'Other Network Connection', ip, isAllowed: false };
         }
-    } catch (error) {
-        console.error("Failed to detect network:", error);
+    } catch (error: any) {
+        if (error.name === 'AbortError') {
+            console.warn("Network detection timed out.");
+        } else {
+            console.error("Failed to detect network:", error);
+        }
         return { name: 'Other Network Connection', ip: 'Unknown', isAllowed: false };
     }
 };
