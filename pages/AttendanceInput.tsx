@@ -9,9 +9,10 @@ interface AttendanceInputProps {
   user: User;
   onSave: (record: AttendanceRecord) => void;
   attendanceRecords: AttendanceRecord[];
+  isAdmin?: boolean;
 }
 
-export const AttendanceInput: React.FC<AttendanceInputProps> = ({ user, onSave, attendanceRecords }) => {
+export const AttendanceInput: React.FC<AttendanceInputProps> = ({ user, onSave, attendanceRecords, isAdmin = false }) => {
   // State
   const [date, setDate] = useState('');
   const [amIn, setAmIn] = useState('');
@@ -73,25 +74,26 @@ export const AttendanceInput: React.FC<AttendanceInputProps> = ({ user, onSave, 
       id: existingRecord?.id || Date.now().toString(),
       userId: user.id,
       date,
-      // Use existing values if locked/existing, otherwise use form state
-      amIn: existingRecord ? existingRecord.amIn : amIn,
-      amOut: existingRecord ? existingRecord.amOut : amOut,
-      pmIn: existingRecord ? existingRecord.pmIn : pmIn,
-      pmOut: existingRecord ? existingRecord.pmOut : pmOut,
-      undertimeMinutes: existingRecord ? existingRecord.undertimeMinutes : undertime,
-      totalDailyMinutes: existingRecord ? existingRecord.totalDailyMinutes : totalNet,
+      // Use form state directly if admin or new record
+      amIn,
+      amOut,
+      pmIn,
+      pmOut,
+      undertimeMinutes: undertime,
+      totalDailyMinutes: totalNet,
       isLocked: true, // Always lock upon save
       isPmDepartureLocked: existingRecord?.isPmDepartureLocked || false,
-      remarks: existingRecord?.remarks || '', // Preserve remarks if they exist in backend, but don't edit here
-      isMerged: existingRecord?.isMerged // Preserve merged state
+      remarks: existingRecord?.remarks || '', 
+      isMerged: existingRecord?.isMerged 
     };
     
     onSave(record);
-    // Force local state update to lock UI immediately after save
+    // Force local state update to lock UI immediately after save (unless admin)
     setExistingRecord(record);
   };
 
-  const isLocked = !!existingRecord;
+  // Lock if record exists AND not admin
+  const isLocked = !!existingRecord && !isAdmin;
 
   return (
     <div className="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow-sm border border-gray-200">
@@ -112,10 +114,16 @@ export const AttendanceInput: React.FC<AttendanceInputProps> = ({ user, onSave, 
                 max={new Date().toISOString().split('T')[0]} // Prevent future dates
                 className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
             />
-            {existingRecord && (
+            {existingRecord && !isAdmin && (
                 <div className="mt-3 flex items-start text-sm text-blue-700 bg-blue-50 p-2 rounded border border-blue-200">
                     <AlertCircle className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
                     <span>Time logs are locked for this date.</span>
+                </div>
+            )}
+            {existingRecord && isAdmin && (
+                <div className="mt-3 flex items-start text-sm text-amber-700 bg-amber-50 p-2 rounded border border-amber-200">
+                    <Edit3 className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
+                    <span>Editing existing record as Admin.</span>
                 </div>
             )}
             {!date && (

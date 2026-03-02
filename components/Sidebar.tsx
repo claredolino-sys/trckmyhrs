@@ -81,6 +81,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ role, isOpen, onLogout, onClos
                   <CalendarDays size={20} />
                   <span>Manage Attendance</span>
                 </NavLink>
+                <NavLink to="/admin/attendance-input" className={getNavLinkClass} onClick={onCloseMobile}>
+                  <History size={20} />
+                  <span>Input Past Attendance</span>
+                </NavLink>
                 <NavLink to="/admin/reports" className={getNavLinkClass} onClick={onCloseMobile}>
                   <FileText size={20} />
                   <span>Reports</span>

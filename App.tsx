@@ -336,13 +336,19 @@ const App: React.FC = () => {
       <Router>
         <Layout user={currentUser} onLogout={handleLogout}>
           <Routes>
+import { AdminAttendanceInput } from './pages/AdminAttendanceInput';
+
+// ... (imports)
+
+// ... inside App component ...
+
               {/* Student Routes */}
               {currentUser.role === UserRole.STUDENT && (
                   <>
                       <Route path="/student/dashboard" element={<StudentDashboard user={currentUser} attendance={attendanceRecords.filter(r => r.userId === currentUser.id)} />} />
                       <Route path="/student/realtime" element={<RealTimeAttendance user={currentUser} onSave={handleSaveAttendance} existingRecord={todayRecord} />} />
                       <Route path="/student/profile" element={<StudentProfile user={currentUser} onUpdate={handleUpdateProfile} />} />
-                      <Route path="/student/attendance" element={<AttendanceInput user={currentUser} onSave={handleSaveAttendance} attendanceRecords={attendanceRecords.filter(r => r.userId === currentUser.id)} />} />
+                      {/* Attendance Input removed for students */}
                       <Route path="/student/dtr" element={<DTRView user={currentUser} attendanceRecords={attendanceRecords.filter(r => r.userId === currentUser.id)} onSave={handleSaveAttendance} />} />
                       <Route path="/student/activity" element={<StudentActivityLog logs={activityLogs.filter(l => l.userId === currentUser.id)} />} />
                       <Route path="*" element={<Navigate to="/student/dashboard" replace />} />
@@ -355,7 +361,7 @@ const App: React.FC = () => {
                       <Route path="/employee/dashboard" element={<EmployeeDashboard user={currentUser} attendance={attendanceRecords.filter(r => r.userId === currentUser.id)} />} />
                       <Route path="/employee/realtime" element={<RealTimeAttendance user={currentUser} onSave={handleSaveAttendance} existingRecord={todayRecord} />} />
                       <Route path="/employee/profile" element={<EmployeeProfile user={currentUser} onUpdate={handleUpdateProfile} />} />
-                      <Route path="/employee/attendance" element={<AttendanceInput user={currentUser} onSave={handleSaveAttendance} attendanceRecords={attendanceRecords.filter(r => r.userId === currentUser.id)} />} />
+                      {/* Attendance Input removed for employees */}
                       <Route path="/employee/dtr" element={<DTRView user={currentUser} attendanceRecords={attendanceRecords.filter(r => r.userId === currentUser.id)} onSave={handleSaveAttendance} />} />
                       <Route path="/employee/activity" element={<StudentActivityLog logs={activityLogs.filter(l => l.userId === currentUser.id)} />} />
                       <Route path="*" element={<Navigate to="/employee/dashboard" replace />} />
@@ -401,6 +407,14 @@ const App: React.FC = () => {
                               students={[...students, ...employees]} 
                               attendance={attendanceRecords} 
                               />
+                      } />
+                      <Route path="/admin/attendance-input" element={
+                          <AdminAttendanceInput 
+                              students={students} 
+                              employees={employees}
+                              attendanceRecords={attendanceRecords} 
+                              onSave={handleSaveAttendance} 
+                          />
                       } />
                       <Route path="/admin/reports" element={
                           <AdminReports 
