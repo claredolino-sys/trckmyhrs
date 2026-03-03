@@ -3,7 +3,7 @@ import autoTable from 'jspdf-autotable';
 import { AttendanceRecord, User, ADMIN_IN_CHARGE } from '../types';
 import { formatTime12HourNoPeriod } from './utils';
 
-export const generateDTRPdf = (user: User, records: AttendanceRecord[], month: string, year: string) => {
+export const generateDTRPdf = (user: User, records: AttendanceRecord[], month: string, year: string, action: 'download' | 'preview' = 'download') => {
   // A4 size: 210mm x 297mm
   const doc = new jsPDF();
   const daysInMonth = new Date(parseInt(year), new Date(`${month} 1, ${year}`).getMonth() + 1, 0).getDate();
@@ -295,5 +295,9 @@ export const generateDTRPdf = (user: User, records: AttendanceRecord[], month: s
   drawInstructions(15);
   drawInstructions(115);
 
-  doc.save(`DTR_${user.profile.name}_${month}_Double.pdf`);
+  if (action === 'download') {
+      doc.save(`DTR_${user.profile.name}_${month}_Double.pdf`);
+  } else {
+      return doc.output('bloburl');
+  }
 };

@@ -3,7 +3,7 @@ import { User, AttendanceRecord, UserRole } from '../types';
 import { Button } from '../components/Button';
 import { generateDTRPdf } from '../services/pdfService';
 import { getMonthName } from '../services/utils';
-import { FileDown, FileText, Users, Briefcase, Database, Upload, Download, AlertCircle } from 'lucide-react';
+import { FileDown, FileText, Users, Briefcase, Database, Upload, Download, AlertCircle, Eye, X } from 'lucide-react';
 import { api } from '../services/api';
 
 interface AdminReportsProps {
@@ -18,6 +18,7 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ students, attendance
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [backupMessage, setBackupMessage] = useState<{ text: string; type: 'success' | 'error' | '' }>({ text: '', type: '' });
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Generate dynamic year range: 2023 to Current Year + 1
@@ -35,7 +36,22 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ students, attendance
       // Filter records for this student
       const studentRecords = attendance.filter(r => r.userId === selectedStudentId);
       
-      generateDTRPdf(student, studentRecords, monthName, selectedYear.toString());
+      generateDTRPdf(student, studentRecords, monthName, selectedYear.toString(), 'download');
+  };
+
+  const handlePreview = () => {
+      const student = students.find(s => s.id === selectedStudentId);
+      if (!student) return;
+
+      const monthName = getMonthName(new Date(selectedYear, selectedMonth, 1).toISOString());
+      
+      // Filter records for this student
+      const studentRecords = attendance.filter(r => r.userId === selectedStudentId);
+      
+      const url = generateDTRPdf(student, studentRecords, monthName, selectedYear.toString(), 'preview');
+      if (typeof url === 'string') {
+          setPreviewUrl(url);
+      }
   };
 
   const handleExport = async () => {
@@ -162,12 +178,22 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ students, attendance
                 </div>
             </div>
 
-            <div className="mt-8">
+            <div className="mt-8 flex flex-col sm:flex-row gap-4">
                 <Button 
                     size="lg" 
-                    fullWidth 
+                    variant="secondary"
+                    onClick={handlePreview} 
+                    disabled={!selectedStudentId}
+                    className="flex-1 sm:flex-none"
+                >
+                    <Eye className="w-5 h-5 mr-2" />
+                    Preview DTR
+                </Button>
+                <Button 
+                    size="lg" 
                     onClick={handleGenerate} 
                     disabled={!selectedStudentId}
+                    className="flex-1 sm:flex-none"
                 >
                     <FileDown className="w-5 h-5 mr-2" />
                     Download DTR PDF
@@ -219,6 +245,39 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ students, attendance
                 </div>
             )}
         </div>
+
+        {/* Preview Modal */}
+        {previewUrl && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden animate-fade-in">
+                    <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
+                        <h3 className="text-lg font-bold text-gray-800 flex items-center">
+                            <FileText className="w-5 h-5 mr-2 text-brand-600" />
+                            DTR Preview
+                        </h3>
+                        <div className="flex items-center gap-2">
+                            <Button size="sm" onClick={handleGenerate}>
+                                <FileDown className="w-4 h-4 mr-2" />
+                                Download PDF
+                            </Button>
+                            <button 
+                                onClick={() => setPreviewUrl(null)}
+                                className="p-2 hover:bg-gray-200 rounded-full transition-colors text-gray-500 hover:text-gray-700"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                    </div>
+                    <div className="flex-1 bg-gray-100 p-4 overflow-hidden">
+                        <iframe 
+                            src={previewUrl} 
+                            className="w-full h-full rounded-lg border border-gray-300 shadow-inner bg-white"
+                            title="DTR Preview"
+                        />
+                    </div>
+                </div>
+            </div>
+        )}
     </div>
   );
 };
