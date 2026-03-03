@@ -157,32 +157,49 @@ export const api = {
             }
         } else {
             console.log('TrackMyHours: Using LocalStorage backend (Supabase credentials missing)');
-            const admins = getLocal<User[]>(KEYS.ADMINS, []);
-            if (admins.length === 0) {
-                console.log('Seeding default admins to LocalStorage...');
-                const defaultAdmins: User[] = [
-                    {
-                        id: 'admin-default',
-                        role: UserRole.ADMIN,
-                        profile: {
-                            name: 'Administrator',
-                            username: 'admin123',
-                            password: '123456',
-                            completedHours: 0
-                        }
-                    },
-                    {
-                        id: 'admin-it',
-                        role: UserRole.ADMIN,
-                        profile: {
-                            name: 'IT Administrator',
-                            username: 'IT_Admin_1',
-                            password: 'password123',
-                            completedHours: 0
-                        }
+            let admins = getLocal<User[]>(KEYS.ADMINS, []);
+            
+            // Ensure default admins exist
+            const defaultAdmins: User[] = [
+                {
+                    id: 'admin-default',
+                    role: UserRole.ADMIN,
+                    profile: {
+                        name: 'Administrator',
+                        username: 'admin123',
+                        password: '123456',
+                        completedHours: 0
                     }
-                ];
-                setLocal(KEYS.ADMINS, defaultAdmins);
+                },
+                {
+                    id: 'admin-it',
+                    role: UserRole.ADMIN,
+                    profile: {
+                        name: 'IT Administrator',
+                        username: 'IT_Admin_1',
+                        password: 'password123',
+                        completedHours: 0
+                    }
+                }
+            ];
+
+            let changed = false;
+            defaultAdmins.forEach(defAdmin => {
+                // Check by ID or Username to avoid duplicates if ID changed somehow
+                const exists = admins.some(a => a.id === defAdmin.id || a.profile.username === defAdmin.profile.username);
+                if (!exists) {
+                    admins.push(defAdmin);
+                    changed = true;
+                }
+            });
+
+            if (changed) {
+                console.log('Restoring missing default admins to LocalStorage...');
+                setLocal(KEYS.ADMINS, admins);
+            } else if (admins.length === 0) {
+                 // Fallback if somehow empty but loop didn't catch it (unlikely but safe)
+                 console.log('Seeding default admins to LocalStorage...');
+                 setLocal(KEYS.ADMINS, defaultAdmins);
             }
         }
     },
@@ -210,7 +227,16 @@ export const api = {
                 else if (role === UserRole.STUDENT) users = getLocal(KEYS.STUDENTS, []);
                 else if (role === UserRole.EMPLOYEE) users = getLocal(KEYS.EMPLOYEES, []);
 
-                const user = users.find(u => u.profile.username === username && u.profile.password === password);
+                let user = users.find(u => u.profile.username === username && u.profile.password === password);
+                
+                // Recovery for Admin: If not found, try re-initializing defaults and check again
+                // This handles cases where admins might have been accidentally cleared
+                if (!user && role === UserRole.ADMIN) {
+                     await api.init(); 
+                     users = getLocal(KEYS.ADMINS, []);
+                     user = users.find(u => u.profile.username === username && u.profile.password === password);
+                }
+
                 return user || null;
             }
         },
