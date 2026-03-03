@@ -75,6 +75,10 @@ export const AttendanceInput: React.FC<AttendanceInputProps> = ({ user, onSave, 
         return;
     }
 
+    // Determine if we should merge columns (if no time logs but has remarks)
+    const hasTimeLogs = !!(amIn || amOut || pmIn || pmOut);
+    const shouldMerge = !hasTimeLogs && !!remarks;
+
     const record: AttendanceRecord = {
       id: existingRecord?.id || Date.now().toString(),
       userId: user.id,
@@ -89,7 +93,7 @@ export const AttendanceInput: React.FC<AttendanceInputProps> = ({ user, onSave, 
       isLocked: true, // Always lock upon save
       isPmDepartureLocked: existingRecord?.isPmDepartureLocked || false,
       remarks: remarks, 
-      isMerged: existingRecord?.isMerged 
+      isMerged: existingRecord?.isMerged || shouldMerge
     };
     
     onSave(record);

@@ -149,6 +149,10 @@ export const AdminAttendanceInput: React.FC<AdminAttendanceInputProps> = ({
         const pmMinutes = calculateMinutes(pmIn, pmOut);
         const totalDailyMinutes = amMinutes + pmMinutes;
 
+        const remarks = normalizedRow['remarks'] || existingRecord?.remarks || '';
+        const hasTimeLogs = !!(amIn || amOut || pmIn || pmOut);
+        const shouldMerge = !hasTimeLogs && !!remarks;
+
         const newRecord: AttendanceRecord = {
           id: existingRecord ? existingRecord.id : `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           userId: user.id,
@@ -161,8 +165,8 @@ export const AdminAttendanceInput: React.FC<AdminAttendanceInputProps> = ({
           totalDailyMinutes: totalDailyMinutes,
           isLocked: false,
           isPmDepartureLocked: false,
-          remarks: normalizedRow['remarks'] || existingRecord?.remarks || '',
-          isMerged: false
+          remarks: remarks,
+          isMerged: existingRecord?.isMerged || shouldMerge
         };
         
         try {
