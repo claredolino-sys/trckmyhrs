@@ -406,6 +406,7 @@ const App: React.FC = () => {
                           <AdminAttendance 
                               students={[...students, ...employees]} 
                               attendance={attendanceRecords} 
+                              onSave={handleSaveAttendance}
                               />
                       } />
                       <Route path="/admin/attendance-input" element={

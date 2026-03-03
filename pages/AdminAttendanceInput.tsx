@@ -1,9 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { User, UserRole, AttendanceRecord } from '../types';
 import { AttendanceInput } from './AttendanceInput';
-import { Users, Briefcase, Search, Upload, FileSpreadsheet, AlertCircle, CheckCircle, X } from 'lucide-react';
+import { Users, Briefcase, Search, Upload, FileSpreadsheet, AlertCircle, CheckCircle, X, Edit, Save } from 'lucide-react';
 import { read, utils, writeFile } from 'xlsx';
-import { calculateMinutes, parseTime } from '../services/utils';
+import { calculateMinutes, parseTime, formatMinutesToHours, formatTime12Hour } from '../services/utils';
 
 interface AdminAttendanceInputProps {
   students: User[];
@@ -27,6 +27,10 @@ export const AdminAttendanceInput: React.FC<AdminAttendanceInputProps> = ({
   const [uploadMessage, setUploadMessage] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Edit State for History Table
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editData, setEditData] = useState<Partial<AttendanceRecord>>({});
+
   const users = userType === UserRole.STUDENT ? students : employees;
   
   const filteredUsers = users.filter(u => 
@@ -38,6 +42,34 @@ export const AdminAttendanceInput: React.FC<AdminAttendanceInputProps> = ({
 
   // Filter attendance records for the selected user
   const userAttendance = attendanceRecords.filter(r => r.userId === selectedUserId);
+  const sortedHistory = [...userAttendance].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  const handleEditRow = (record: AttendanceRecord) => {
+      setEditingId(record.id);
+      setEditData({ ...record });
+  };
+
+  const handleCancelEdit = () => {
+      setEditingId(null);
+      setEditData({});
+  };
+
+  const handleSaveRow = async () => {
+      if (!editingId) return;
+      
+      const amMin = calculateMinutes(editData.amIn || '', editData.amOut || '');
+      const pmMin = calculateMinutes(editData.pmIn || '', editData.pmOut || '');
+      const total = amMin + pmMin;
+      
+      const updatedRecord = {
+          ...editData,
+          totalDailyMinutes: total
+      } as AttendanceRecord;
+
+      await (onSave as any)(updatedRecord);
+      setEditingId(null);
+      setEditData({});
+  };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -381,6 +413,135 @@ export const AdminAttendanceInput: React.FC<AdminAttendanceInputProps> = ({
                   onSave={onSave} 
                   isAdmin={true}
               />
+
+              {/* Attendance History Table */}
+              <div className="mt-8 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                  <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                      <h3 className="font-semibold text-gray-800">Attendance History</h3>
+                  </div>
+                  <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200 text-sm">
+                          <thead className="bg-gray-50">
+                              <tr>
+                                  <th className="px-6 py-3 text-left font-medium text-gray-500">Date</th>
+                                  <th className="px-6 py-3 text-left font-medium text-gray-500">AM Session</th>
+                                  <th className="px-6 py-3 text-left font-medium text-gray-500">PM Session</th>
+                                  <th className="px-6 py-3 text-left font-medium text-gray-500">Remarks</th>
+                                  <th className="px-6 py-3 text-left font-medium text-gray-500">Total Hours</th>
+                                  <th className="px-6 py-3 text-right font-medium text-gray-500">Actions</th>
+                              </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                              {sortedHistory.map((row) => {
+                                  const isEditing = editingId === row.id;
+                                  return (
+                                      <tr key={row.id} className="hover:bg-gray-50">
+                                          <td className="px-6 py-4 whitespace-nowrap text-gray-900">{row.date}</td>
+                                          
+                                          {/* AM Session */}
+                                          <td className="px-6 py-4 whitespace-nowrap text-gray-900">
+                                              {isEditing ? (
+                                                  <div className="flex items-center space-x-1">
+                                                      <input 
+                                                          type="time" 
+                                                          className="w-24 p-1 text-xs border rounded"
+                                                          value={editData.amIn || ''}
+                                                          onChange={e => setEditData({...editData, amIn: e.target.value})}
+                                                      />
+                                                      <span>-</span>
+                                                      <input 
+                                                          type="time" 
+                                                          className="w-24 p-1 text-xs border rounded"
+                                                          value={editData.amOut || ''}
+                                                          onChange={e => setEditData({...editData, amOut: e.target.value})}
+                                                      />
+                                                  </div>
+                                              ) : (
+                                                  <span>{formatTime12Hour(row.amIn)} - {formatTime12Hour(row.amOut)}</span>
+                                              )}
+                                          </td>
+
+                                          {/* PM Session */}
+                                          <td className="px-6 py-4 whitespace-nowrap text-gray-900">
+                                              {isEditing ? (
+                                                  <div className="flex items-center space-x-1">
+                                                      <input 
+                                                          type="time" 
+                                                          className="w-24 p-1 text-xs border rounded"
+                                                          value={editData.pmIn || ''}
+                                                          onChange={e => setEditData({...editData, pmIn: e.target.value})}
+                                                      />
+                                                      <span>-</span>
+                                                      <input 
+                                                          type="time" 
+                                                          className="w-24 p-1 text-xs border rounded"
+                                                          value={editData.pmOut || ''}
+                                                          onChange={e => setEditData({...editData, pmOut: e.target.value})}
+                                                      />
+                                                  </div>
+                                              ) : (
+                                                  <span>{formatTime12Hour(row.pmIn)} - {formatTime12Hour(row.pmOut)}</span>
+                                              )}
+                                          </td>
+
+                                          {/* Remarks */}
+                                          <td className="px-6 py-4 whitespace-nowrap text-gray-900">
+                                              {isEditing ? (
+                                                  <input 
+                                                      type="text" 
+                                                      className="w-full p-1 text-xs border rounded"
+                                                      value={editData.remarks || ''}
+                                                      onChange={e => setEditData({...editData, remarks: e.target.value})}
+                                                      placeholder="Remarks..."
+                                                  />
+                                              ) : (
+                                                  <span className="text-gray-500 italic">{row.remarks || '-'}</span>
+                                              )}
+                                          </td>
+
+                                          <td className="px-6 py-4 whitespace-nowrap font-bold text-brand-700">
+                                              {formatMinutesToHours(row.totalDailyMinutes)}
+                                          </td>
+                                          
+                                          {/* Actions */}
+                                          <td className="px-6 py-4 whitespace-nowrap text-right">
+                                              {isEditing ? (
+                                                  <div className="flex items-center justify-end space-x-2">
+                                                      <button 
+                                                          onClick={handleSaveRow}
+                                                          className="p-1 text-green-600 hover:bg-green-50 rounded"
+                                                          title="Save"
+                                                      >
+                                                          <Save className="w-4 h-4" />
+                                                      </button>
+                                                      <button 
+                                                          onClick={handleCancelEdit}
+                                                          className="p-1 text-red-600 hover:bg-red-50 rounded"
+                                                          title="Cancel"
+                                                      >
+                                                          <X className="w-4 h-4" />
+                                                      </button>
+                                                  </div>
+                                              ) : (
+                                                  <button 
+                                                      onClick={() => handleEditRow(row)}
+                                                      className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                                                      title="Edit"
+                                                  >
+                                                      <Edit className="w-4 h-4" />
+                                                  </button>
+                                              )}
+                                          </td>
+                                      </tr>
+                                  );
+                              })}
+                              {sortedHistory.length === 0 && (
+                                  <tr><td colSpan={6} className="px-6 py-8 text-center text-gray-500">No attendance records found for this user.</td></tr>
+                              )}
+                          </tbody>
+                      </table>
+                  </div>
+              </div>
           </div>
       ) : (
           <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 text-gray-400">

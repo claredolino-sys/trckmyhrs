@@ -1,18 +1,51 @@
 import React, { useState } from 'react';
 import { User, AttendanceRecord, UserRole } from '../types';
-import { formatMinutesToHours, formatDateForInput, formatTime12Hour } from '../services/utils';
-import { Search, LayoutList, CalendarDays, CheckCircle2, AlertCircle, Users, Briefcase } from 'lucide-react';
+import { formatMinutesToHours, formatDateForInput, formatTime12Hour, calculateMinutes } from '../services/utils';
+import { Search, LayoutList, CalendarDays, CheckCircle2, AlertCircle, Users, Briefcase, Edit, Save, X } from 'lucide-react';
 
 interface AdminAttendanceProps {
   students: User[];
   attendance: AttendanceRecord[];
+  onSave?: (record: AttendanceRecord) => void;
 }
 
-export const AdminAttendance: React.FC<AdminAttendanceProps> = ({ students, attendance }) => {
+export const AdminAttendance: React.FC<AdminAttendanceProps> = ({ students, attendance, onSave }) => {
   const [view, setView] = useState<'summary' | 'daily'>('summary');
   const [userType, setUserType] = useState<UserRole>(UserRole.STUDENT);
   const [filterName, setFilterName] = useState('');
   const [filterDate, setFilterDate] = useState('');
+
+  // Edit State
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editData, setEditData] = useState<Partial<AttendanceRecord>>({});
+
+  const handleEdit = (record: AttendanceRecord) => {
+      setEditingId(record.id);
+      setEditData({ ...record });
+  };
+
+  const handleCancel = () => {
+      setEditingId(null);
+      setEditData({});
+  };
+
+  const handleSave = () => {
+      if (!editingId || !onSave) return;
+      
+      // Calculate new total minutes
+      const amMin = calculateMinutes(editData.amIn || '', editData.amOut || '');
+      const pmMin = calculateMinutes(editData.pmIn || '', editData.pmOut || '');
+      const total = amMin + pmMin;
+      
+      const updatedRecord = {
+          ...editData,
+          totalDailyMinutes: total
+      } as AttendanceRecord;
+
+      onSave(updatedRecord);
+      setEditingId(null);
+      setEditData({});
+  };
 
   // --- Logic for Daily Logs View ---
   const dailyRows = attendance.map(record => {
@@ -241,33 +274,121 @@ export const AdminAttendance: React.FC<AdminAttendanceProps> = ({ students, atte
                   <tr>
                     <th className="px-6 py-3 text-left font-medium text-gray-500">Date</th>
                     <th className="px-6 py-3 text-left font-medium text-gray-500">Name</th>
-                    <th className="px-6 py-3 text-left font-medium text-gray-500">Username</th>
-                    <th className="px-6 py-3 text-left font-medium text-gray-500">AM</th>
-                    <th className="px-6 py-3 text-left font-medium text-gray-500">PM</th>
+                    <th className="px-6 py-3 text-left font-medium text-gray-500">AM Session</th>
+                    <th className="px-6 py-3 text-left font-medium text-gray-500">PM Session</th>
+                    <th className="px-6 py-3 text-left font-medium text-gray-500">Remarks</th>
                     <th className="px-6 py-3 text-left font-medium text-gray-500">Total Hours</th>
-                    <th className="px-6 py-3 text-left font-medium text-gray-500">Status</th>
+                    <th className="px-6 py-3 text-right font-medium text-gray-500">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {dailyRows.map((row) => (
+                  {dailyRows.map((row) => {
+                      const isEditing = editingId === row.id;
+                      return (
                       <tr key={row.id} className="hover:bg-gray-50">
                           <td className="px-6 py-4 whitespace-nowrap text-gray-900">{row.date}</td>
-                          <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{row.studentName}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-gray-500">{row.studentUsername}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-gray-900">
-                              {formatTime12Hour(row.amIn)} - {formatTime12Hour(row.amOut)}
+                          <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="font-medium text-gray-900">{row.studentName}</div>
+                              <div className="text-xs text-gray-500">@{row.studentUsername}</div>
                           </td>
+                          
+                          {/* AM Session */}
                           <td className="px-6 py-4 whitespace-nowrap text-gray-900">
-                              {formatTime12Hour(row.pmIn)} - {formatTime12Hour(row.pmOut)}
+                              {isEditing ? (
+                                  <div className="flex items-center space-x-1">
+                                      <input 
+                                          type="time" 
+                                          className="w-24 p-1 text-xs border rounded"
+                                          value={editData.amIn || ''}
+                                          onChange={e => setEditData({...editData, amIn: e.target.value})}
+                                      />
+                                      <span>-</span>
+                                      <input 
+                                          type="time" 
+                                          className="w-24 p-1 text-xs border rounded"
+                                          value={editData.amOut || ''}
+                                          onChange={e => setEditData({...editData, amOut: e.target.value})}
+                                      />
+                                  </div>
+                              ) : (
+                                  <span>{formatTime12Hour(row.amIn)} - {formatTime12Hour(row.amOut)}</span>
+                              )}
                           </td>
+
+                          {/* PM Session */}
+                          <td className="px-6 py-4 whitespace-nowrap text-gray-900">
+                              {isEditing ? (
+                                  <div className="flex items-center space-x-1">
+                                      <input 
+                                          type="time" 
+                                          className="w-24 p-1 text-xs border rounded"
+                                          value={editData.pmIn || ''}
+                                          onChange={e => setEditData({...editData, pmIn: e.target.value})}
+                                      />
+                                      <span>-</span>
+                                      <input 
+                                          type="time" 
+                                          className="w-24 p-1 text-xs border rounded"
+                                          value={editData.pmOut || ''}
+                                          onChange={e => setEditData({...editData, pmOut: e.target.value})}
+                                      />
+                                  </div>
+                              ) : (
+                                  <span>{formatTime12Hour(row.pmIn)} - {formatTime12Hour(row.pmOut)}</span>
+                              )}
+                          </td>
+
+                          {/* Remarks */}
+                          <td className="px-6 py-4 whitespace-nowrap text-gray-900">
+                              {isEditing ? (
+                                  <input 
+                                      type="text" 
+                                      className="w-full p-1 text-xs border rounded"
+                                      value={editData.remarks || ''}
+                                      onChange={e => setEditData({...editData, remarks: e.target.value})}
+                                      placeholder="Remarks..."
+                                  />
+                              ) : (
+                                  <span className="text-gray-500 italic">{row.remarks || '-'}</span>
+                              )}
+                          </td>
+
                           <td className="px-6 py-4 whitespace-nowrap font-bold text-brand-700">
                               {formatMinutesToHours(row.totalDailyMinutes)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                              <span className="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">Submitted</span>
+                          
+                          {/* Actions */}
+                          <td className="px-6 py-4 whitespace-nowrap text-right">
+                              {isEditing ? (
+                                  <div className="flex items-center justify-end space-x-2">
+                                      <button 
+                                          onClick={handleSave}
+                                          className="p-1 text-green-600 hover:bg-green-50 rounded"
+                                          title="Save"
+                                      >
+                                          <Save className="w-4 h-4" />
+                                      </button>
+                                      <button 
+                                          onClick={handleCancel}
+                                          className="p-1 text-red-600 hover:bg-red-50 rounded"
+                                          title="Cancel"
+                                      >
+                                          <X className="w-4 h-4" />
+                                      </button>
+                                  </div>
+                              ) : (
+                                  <button 
+                                      onClick={() => handleEdit(row)}
+                                      className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                                      title="Edit"
+                                  >
+                                      <Edit className="w-4 h-4" />
+                                  </button>
+                              )}
                           </td>
                       </tr>
-                  ))}
+                      );
+                  })}
                   {dailyRows.length === 0 && (
                       <tr><td colSpan={7} className="px-6 py-8 text-center text-gray-500">No records found matching filters.</td></tr>
                   )}
