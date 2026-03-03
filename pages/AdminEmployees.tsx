@@ -9,12 +9,13 @@ import html2canvas from 'html2canvas';
 
 interface AdminEmployeesProps {
   employees: User[];
+  attendance: AttendanceRecord[];
   onAdd: (u: User) => void;
   onEdit: (u: User) => void;
   onDelete: (id: string) => void;
 }
 
-export const AdminEmployees: React.FC<AdminEmployeesProps> = ({ employees, onAdd, onEdit, onDelete }) => {
+export const AdminEmployees: React.FC<AdminEmployeesProps> = ({ employees, attendance, onAdd, onEdit, onDelete }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -162,7 +163,12 @@ export const AdminEmployees: React.FC<AdminEmployeesProps> = ({ employees, onAdd
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {employees.map((employee) => (
+              {employees.map((employee) => {
+                  // Calculate hours dynamically from attendance records
+                  const employeeAttendance = attendance.filter(r => r.userId === employee.id);
+                  const totalMinutes = employeeAttendance.reduce((acc, curr) => acc + curr.totalDailyMinutes, 0);
+                  
+                  return (
                   <tr key={employee.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
@@ -186,7 +192,7 @@ export const AdminEmployees: React.FC<AdminEmployeesProps> = ({ employees, onAdd
                         {employee.profile.username}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-brand-600">
-                       {formatMinutesToHours(employee.profile.completedHours)}
+                       {formatMinutesToHours(totalMinutes)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                         <button onClick={() => openQrModal(employee)} className="text-gray-600 hover:text-brand-600" title="View QR Code"><QrCode size={18} /></button>
@@ -194,7 +200,8 @@ export const AdminEmployees: React.FC<AdminEmployeesProps> = ({ employees, onAdd
                         <button onClick={() => handleDeleteClick(employee)} className="text-red-600 hover:text-red-900"><Trash2 size={18} /></button>
                     </td>
                   </tr>
-              ))}
+                  );
+              })}
               {employees.length === 0 && (
                   <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-500">No employees registered yet. Click "Register Employee" to add one.</td></tr>
               )}

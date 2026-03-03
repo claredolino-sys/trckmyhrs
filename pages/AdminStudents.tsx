@@ -9,12 +9,13 @@ import html2canvas from 'html2canvas';
 
 interface AdminStudentsProps {
   students: User[];
+  attendance: AttendanceRecord[];
   onAdd: (u: User) => void;
   onEdit: (u: User) => void;
   onDelete: (id: string) => void;
 }
 
-export const AdminStudents: React.FC<AdminStudentsProps> = ({ students, onAdd, onEdit, onDelete }) => {
+export const AdminStudents: React.FC<AdminStudentsProps> = ({ students, attendance, onAdd, onEdit, onDelete }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -178,7 +179,11 @@ export const AdminStudents: React.FC<AdminStudentsProps> = ({ students, onAdd, o
             <tbody className="bg-white divide-y divide-gray-200">
               {students.map((student) => {
                  const req = student.profile.requiredHours || 1;
-                 const percentage = Math.min(100, Math.round((student.profile.completedHours / (req * 60)) * 100));
+                 // Calculate completed hours dynamically from attendance records
+                 const studentAttendance = attendance.filter(r => r.userId === student.id);
+                 const totalMinutes = studentAttendance.reduce((acc, curr) => acc + curr.totalDailyMinutes, 0);
+                 
+                 const percentage = Math.min(100, Math.round((totalMinutes / (req * 60)) * 100));
 
                  return (
                   <tr key={student.id} className="hover:bg-gray-50 transition-colors">
@@ -215,7 +220,7 @@ export const AdminStudents: React.FC<AdminStudentsProps> = ({ students, onAdd, o
                        <div className="w-full bg-gray-200 rounded-full h-2.5 max-w-[100px]">
                           <div className={`h-2.5 rounded-full ${percentage >= 100 ? 'bg-green-500' : 'bg-brand-600'}`} style={{ width: `${percentage}%` }}></div>
                        </div>
-                       <span className="text-xs text-gray-500 mt-1 inline-block">{formatMinutesToHours(student.profile.completedHours)} / {student.profile.requiredHours || 0}h</span>
+                       <span className="text-xs text-gray-500 mt-1 inline-block">{formatMinutesToHours(totalMinutes)} / {student.profile.requiredHours || 0}h</span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                         <button onClick={() => openQrModal(student)} className="text-gray-600 hover:text-brand-600" title="View QR Code"><QrCode size={18} /></button>

@@ -382,7 +382,8 @@ const App: React.FC = () => {
                       } />
                       <Route path="/admin/students" element={
                           <AdminStudents 
-                              students={students} 
+                              students={students}
+                              attendance={attendanceRecords}
                               onAdd={handleAddStudent} 
                               onEdit={handleEditStudent} 
                               onDelete={handleDeleteStudent} 
@@ -391,6 +392,7 @@ const App: React.FC = () => {
                       <Route path="/admin/employees" element={
                           <AdminEmployees 
                               employees={employees}
+                              attendance={attendanceRecords}
                               onAdd={handleAddEmployee}
                               onEdit={handleEditEmployee}
                               onDelete={handleDeleteEmployee}
