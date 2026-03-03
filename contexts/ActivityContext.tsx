@@ -20,6 +20,10 @@ export const ActivityProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   useEffect(() => {
     refreshLogs();
+    
+    // Poll for new logs every 5 seconds to keep admin dashboard updated
+    const interval = setInterval(refreshLogs, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const logActivity = async (userId: string, action: string, location?: { lat: number; lng: number }, network?: string) => {

@@ -70,6 +70,7 @@ const App: React.FC = () => {
       setEmployees(e);
       setAdmins(a);
       setAttendanceRecords(ar);
+      await refreshLogs();
   };
 
   // Sync current user if their profile is updated in the background
