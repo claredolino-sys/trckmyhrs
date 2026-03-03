@@ -21,6 +21,7 @@ export const AttendanceInput: React.FC<AttendanceInputProps> = ({ user, onSave, 
   const [pmIn, setPmIn] = useState('');
   const [pmOut, setPmOut] = useState('');
   const [undertime, setUndertime] = useState(0);
+  const [remarks, setRemarks] = useState('');
   const [existingRecord, setExistingRecord] = useState<AttendanceRecord | null>(null);
 
   // Check for existing records when date changes
@@ -36,6 +37,7 @@ export const AttendanceInput: React.FC<AttendanceInputProps> = ({ user, onSave, 
           setPmIn(record.pmIn);
           setPmOut(record.pmOut);
           setUndertime(record.undertimeMinutes);
+          setRemarks(record.remarks || '');
       } else {
           // Reset fields if no record
           setAmIn('');
@@ -43,6 +45,7 @@ export const AttendanceInput: React.FC<AttendanceInputProps> = ({ user, onSave, 
           setPmIn('');
           setPmOut('');
           setUndertime(0);
+          setRemarks('');
       }
     } else {
         setExistingRecord(null);
@@ -51,6 +54,7 @@ export const AttendanceInput: React.FC<AttendanceInputProps> = ({ user, onSave, 
         setPmIn('');
         setPmOut('');
         setUndertime(0);
+        setRemarks('');
     }
   }, [date, attendanceRecords]);
 
@@ -66,8 +70,8 @@ export const AttendanceInput: React.FC<AttendanceInputProps> = ({ user, onSave, 
     // If no date selected
     if (!date) return;
     
-    // If Creating new record: Require at least one time entry or undertime
-    if (!existingRecord && !amIn && !amOut && !pmIn && !pmOut && undertime === 0) {
+    // If Creating new record: Require at least one time entry or undertime or remarks
+    if (!existingRecord && !amIn && !amOut && !pmIn && !pmOut && undertime === 0 && !remarks) {
         return;
     }
 
@@ -84,7 +88,7 @@ export const AttendanceInput: React.FC<AttendanceInputProps> = ({ user, onSave, 
       totalDailyMinutes: totalNet,
       isLocked: true, // Always lock upon save
       isPmDepartureLocked: existingRecord?.isPmDepartureLocked || false,
-      remarks: existingRecord?.remarks || '', 
+      remarks: remarks, 
       isMerged: existingRecord?.isMerged 
     };
     
@@ -183,9 +187,9 @@ export const AttendanceInput: React.FC<AttendanceInputProps> = ({ user, onSave, 
 
             {/* Undertime */}
             <div className={`p-4 rounded-lg border mt-6 ${isLocked ? 'bg-gray-100 border-gray-200' : 'bg-gray-50 border-gray-200'}`}>
-            <h3 className={`font-semibold mb-4 ${isLocked ? 'text-gray-500' : 'text-gray-900'}`}>Deductions</h3>
-            <div className="flex items-center space-x-4">
-                <div className="flex-1">
+            <h3 className={`font-semibold mb-4 ${isLocked ? 'text-gray-500' : 'text-gray-900'}`}>Deductions & Remarks</h3>
+            <div className="space-y-4">
+                <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Undertime (Minutes)</label>
                     <input 
                         type="number" 
@@ -194,6 +198,17 @@ export const AttendanceInput: React.FC<AttendanceInputProps> = ({ user, onSave, 
                         onChange={e => setUndertime(parseInt(e.target.value) || 0)}
                         disabled={isLocked}
                         className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 disabled:bg-gray-100 disabled:text-gray-500"
+                    />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Remarks</label>
+                    <textarea 
+                        value={remarks}
+                        onChange={e => setRemarks(e.target.value)}
+                        disabled={isLocked}
+                        placeholder="e.g., Holiday, Work Suspension, Official Business"
+                        rows={3}
+                        className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 disabled:bg-gray-100 disabled:text-gray-500 resize-none"
                     />
                 </div>
             </div>
