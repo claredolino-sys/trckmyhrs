@@ -198,10 +198,10 @@ export const AdminAttendanceInput: React.FC<AdminAttendanceInputProps> = ({
         Username: 'jdoe123',
         Name: 'John Doe',
         Date: '10/25/2023', // MM/DD/YYYY
-        'AM In': '08:00',
-        'AM Out': '12:00',
-        'PM In': '13:00',
-        'PM Out': '17:00',
+        'AM In': '08:00 AM',
+        'AM Out': '12:00 PM',
+        'PM In': '01:00 PM',
+        'PM Out': '05:00 PM',
         Remarks: 'Regular Schedule'
       }
     ];

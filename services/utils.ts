@@ -72,16 +72,18 @@ export const parseTime = (val: any): string => {
     }
     
     // Handle "8:00 AM" or "08:00 PM" (12-hour)
-    const match = str.match(/(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)/i);
+    // Also handles "8 AM" or "8 PM" (without minutes)
+    const match = str.match(/(\d{1,2})(?::(\d{2}))?\s*(AM|PM|am|pm)/i);
     if (match) {
         let [_, h, m, ap] = match;
         let hour = parseInt(h, 10);
+        const minutes = m ? m : '00';
         const isPM = ap.toUpperCase() === 'PM';
         
         if (isPM && hour < 12) hour += 12;
         if (!isPM && hour === 12) hour = 0;
         
-        return `${hour.toString().padStart(2, '0')}:${m}`;
+        return `${hour.toString().padStart(2, '0')}:${minutes}`;
     }
     
     return str;
