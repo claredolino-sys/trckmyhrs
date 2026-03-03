@@ -160,7 +160,7 @@ export const FaceLiveness: React.FC<FaceLivenessProps> = ({ storedProfilePicture
       if (isMatch) {
         setStatus('success');
         setMessage('Identity verified successfully!');
-        setTimeout(onSuccess, 1500);
+        setTimeout(onSuccess, 500);
       } else {
         setStatus('failed');
         setError('Verification failed. Face does not match profile photo.');

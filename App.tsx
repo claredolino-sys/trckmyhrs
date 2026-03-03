@@ -128,9 +128,11 @@ const App: React.FC = () => {
           window.location.hash = redirectPath;
       }
       
-      // Refresh data
-      await refreshData();
+      // Set user immediately to show dashboard
       setCurrentUser(user);
+      
+      // Refresh data in background
+      await refreshData();
 
       // Location logic
       let location: { lat: number; lng: number } | undefined = undefined;
@@ -222,8 +224,9 @@ const App: React.FC = () => {
       if (!pendingVerificationUser) return;
 
       const user = pendingVerificationUser;
-      setShowFaceLiveness(false);
-      setPendingVerificationUser(null);
+      // Don't close modal here to prevent flashing back to login
+      // setShowFaceLiveness(false); 
+      // setPendingVerificationUser(null);
 
       completeLogin(user, `${user.role} logged in via Biometrics`);
   };
