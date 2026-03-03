@@ -36,8 +36,9 @@ export const AdminAttendance: React.FC<AdminAttendanceProps> = ({ students, atte
   const getStudentStats = (studentId: string) => {
       const studentRecords = attendance.filter(r => r.userId === studentId);
       const present = studentRecords.length;
+      const totalMinutes = studentRecords.reduce((acc, curr) => acc + curr.totalDailyMinutes, 0);
       
-      if (present === 0) return { present: 0, absent: 0 };
+      if (present === 0) return { present: 0, absent: 0, totalMinutes: 0 };
 
       // Calculate Absent: Weekdays from first log until yesterday that have no record
       const sortedDates = studentRecords
@@ -69,7 +70,7 @@ export const AdminAttendance: React.FC<AdminAttendanceProps> = ({ students, atte
           loopCount++;
       }
       
-      return { present, absent };
+      return { present, absent, totalMinutes };
   };
 
   const summaryRows = students
@@ -173,7 +174,7 @@ export const AdminAttendance: React.FC<AdminAttendanceProps> = ({ students, atte
                 <tbody className="bg-white divide-y divide-gray-200">
                   {summaryRows.map((user) => {
                       const req = user.profile.requiredHours || 0;
-                      const completed = user.profile.completedHours;
+                      const completed = user.stats.totalMinutes;
                       // Completion status logic varies
                       let isComplete = false;
                       let statusText = "In Progress";

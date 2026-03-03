@@ -24,7 +24,10 @@ interface StudentDashboardProps {
 export const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, attendance }) => {
   // Stats Logic
   const totalRequired = (user.profile.requiredHours || 0) * 60; // in minutes
-  const completed = user.profile.completedHours;
+  
+  // Calculate completed hours directly from attendance records to ensure accuracy
+  const completed = attendance.reduce((acc, curr) => acc + curr.totalDailyMinutes, 0);
+  
   const remaining = Math.max(0, totalRequired - completed);
   
   const percentage = totalRequired > 0 ? Math.min(100, Math.round((completed / totalRequired) * 100)) : 0;
