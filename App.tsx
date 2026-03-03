@@ -11,7 +11,6 @@ import { EmployeeDashboard } from './pages/EmployeeDashboard';
 import { EmployeeProfile } from './pages/EmployeeProfile';
 import { AdminEmployees } from './pages/AdminEmployees';
 // Shared Pages
-import { AttendanceInput } from './pages/AttendanceInput';
 import { RealTimeAttendance } from './pages/RealTimeAttendance';
 import { DTRView } from './pages/DTRView';
 // Admin Pages

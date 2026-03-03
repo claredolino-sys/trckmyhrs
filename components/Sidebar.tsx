@@ -114,10 +114,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ role, isOpen, onLogout, onClos
                   <Timer size={20} />
                   <span>Real-time Attendance</span>
                 </NavLink>
-                <NavLink to="/student/attendance" className={getNavLinkClass} onClick={onCloseMobile}>
-                  <History size={20} />
-                  <span>Input Past Time</span>
-                </NavLink>
                 <NavLink to="/student/dtr" className={getNavLinkClass} onClick={onCloseMobile}>
                   <FileText size={20} />
                   <span>Daily Time Record</span>
@@ -142,10 +138,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ role, isOpen, onLogout, onClos
                 <NavLink to="/employee/realtime" className={getNavLinkClass} onClick={onCloseMobile}>
                   <Timer size={20} />
                   <span>Real-time Attendance</span>
-                </NavLink>
-                <NavLink to="/employee/attendance" className={getNavLinkClass} onClick={onCloseMobile}>
-                  <History size={20} />
-                  <span>Input Past Time</span>
                 </NavLink>
                 <NavLink to="/employee/dtr" className={getNavLinkClass} onClick={onCloseMobile}>
                   <FileText size={20} />
