@@ -35,11 +35,13 @@ export const AdminAttendance: React.FC<AdminAttendanceProps> = ({ students, atte
       // Calculate new total minutes
       const amMin = calculateMinutes(editData.amIn || '', editData.amOut || '');
       const pmMin = calculateMinutes(editData.pmIn || '', editData.pmOut || '');
-      const total = amMin + pmMin;
+      const totalRaw = amMin + pmMin;
+      const undertime = editData.undertimeMinutes || 0;
+      const totalNet = Math.max(0, totalRaw - undertime);
       
       const updatedRecord = {
           ...editData,
-          totalDailyMinutes: total
+          totalDailyMinutes: totalNet
       } as AttendanceRecord;
 
       onSave(updatedRecord);
@@ -50,8 +52,16 @@ export const AdminAttendance: React.FC<AdminAttendanceProps> = ({ students, atte
   // --- Logic for Daily Logs View ---
   const dailyRows = attendance.map(record => {
       const user = students.find(s => s.id === record.userId);
+      
+      // Recalculate for display accuracy
+      const amMin = calculateMinutes(record.amIn, record.amOut);
+      const pmMin = calculateMinutes(record.pmIn, record.pmOut);
+      const totalRaw = amMin + pmMin;
+      const totalNet = Math.max(0, totalRaw - (record.undertimeMinutes || 0));
+
       return {
           ...record,
+          totalDailyMinutes: totalNet, // Override with calculated value
           user,
           studentName: user?.profile.name || 'Unknown',
           studentUsername: user?.profile.username || 'Unknown'
@@ -69,7 +79,15 @@ export const AdminAttendance: React.FC<AdminAttendanceProps> = ({ students, atte
   const getStudentStats = (studentId: string) => {
       const studentRecords = attendance.filter(r => r.userId === studentId);
       const present = studentRecords.length;
-      const totalMinutes = studentRecords.reduce((acc, curr) => acc + curr.totalDailyMinutes, 0);
+      
+      // Recalculate total minutes
+      const totalMinutes = studentRecords.reduce((acc, curr) => {
+          const amMin = calculateMinutes(curr.amIn, curr.amOut);
+          const pmMin = calculateMinutes(curr.pmIn, curr.pmOut);
+          const totalRaw = amMin + pmMin;
+          const totalNet = Math.max(0, totalRaw - (curr.undertimeMinutes || 0));
+          return acc + totalNet;
+      }, 0);
       
       if (present === 0) return { present: 0, absent: 0, totalMinutes: 0 };
 

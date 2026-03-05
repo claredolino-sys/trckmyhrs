@@ -3,7 +3,7 @@ import { User, AttendanceRecord, ADMIN_IN_CHARGE } from '../types';
 import { Button } from '../components/Button';
 import { Download, FileText, Edit2, X, Check, Merge } from 'lucide-react';
 import { generateDTRPdf } from '../services/pdfService';
-import { getMonthName, getDaysInMonth, formatMinutesToHours, formatDateForInput, formatTime12Hour, formatTime12HourNoPeriod } from '../services/utils';
+import { getMonthName, getDaysInMonth, formatMinutesToHours, formatDateForInput, formatTime12Hour, formatTime12HourNoPeriod, calculateMinutes } from '../services/utils';
 import { Input } from '../components/Input';
 
 interface DTRViewProps {
@@ -60,8 +60,16 @@ export const DTRView: React.FC<DTRViewProps> = ({ user, attendanceRecords, onSav
      let displayPmOut = formatTime12HourNoPeriod(record?.pmOut || '');
      const undertimeMinutes = record?.undertimeMinutes || 0;
 
+     // Recalculate daily minutes on the fly for accuracy
+     const amMin = calculateMinutes(record?.amIn || '', record?.amOut || '');
+     const pmMin = calculateMinutes(record?.pmIn || '', record?.pmOut || '');
+     const totalRaw = amMin + pmMin;
+     const dailyTotal = Math.max(0, totalRaw - undertimeMinutes);
+
      // Accumulate total worked minutes
-     totalMinutesWorked += record?.totalDailyMinutes || 0;
+     if (record) {
+         totalMinutesWorked += dailyTotal;
+     }
      
      // Auto-populate weekends if no specific record exists
      if (!record && (dayOfWeek === 0 || dayOfWeek === 6)) {
@@ -77,7 +85,7 @@ export const DTRView: React.FC<DTRViewProps> = ({ user, attendanceRecords, onSav
          pmIn: displayPmIn,
          pmOut: displayPmOut,
          undertimeMinutes: undertimeMinutes,
-         total: record?.totalDailyMinutes ? formatMinutesToHours(record.totalDailyMinutes) : '',
+         total: (record && dailyTotal > 0) ? formatMinutesToHours(dailyTotal) : '',
          isMerged,
          remarks,
          originalRecord: record
@@ -107,6 +115,13 @@ export const DTRView: React.FC<DTRViewProps> = ({ user, attendanceRecords, onSav
       const dateStr = formatDateForInput(new Date(selectedYear, selectedMonth, editingDay));
       const existingRecord = attendanceRecords.find(r => r.date === dateStr);
       
+      // Recalculate total for the updated record as well, just in case
+      const amMin = calculateMinutes(existingRecord?.amIn || '', existingRecord?.amOut || '');
+      const pmMin = calculateMinutes(existingRecord?.pmIn || '', existingRecord?.pmOut || '');
+      const totalRaw = amMin + pmMin;
+      const undertime = existingRecord?.undertimeMinutes || 0;
+      const totalNet = Math.max(0, totalRaw - undertime);
+
       const updatedRecord: AttendanceRecord = {
           id: existingRecord?.id || Date.now().toString(),
           userId: user.id,
@@ -117,7 +132,7 @@ export const DTRView: React.FC<DTRViewProps> = ({ user, attendanceRecords, onSav
           pmIn: existingRecord?.pmIn || '',
           pmOut: existingRecord?.pmOut || '',
           undertimeMinutes: existingRecord?.undertimeMinutes || 0, 
-          totalDailyMinutes: existingRecord?.totalDailyMinutes || 0,
+          totalDailyMinutes: totalNet,
           isLocked: true,
           isPmDepartureLocked: existingRecord?.isPmDepartureLocked || false,
           remarks: editForm.remarks,

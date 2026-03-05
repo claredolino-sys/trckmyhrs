@@ -42,7 +42,20 @@ export const AdminAttendanceInput: React.FC<AdminAttendanceInputProps> = ({
 
   // Filter attendance records for the selected user
   const userAttendance = attendanceRecords.filter(r => r.userId === selectedUserId);
-  const sortedHistory = [...userAttendance].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const sortedHistory = [...userAttendance]
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .map(record => {
+          // Recalculate for display accuracy
+          const amMin = calculateMinutes(record.amIn, record.amOut);
+          const pmMin = calculateMinutes(record.pmIn, record.pmOut);
+          const totalRaw = amMin + pmMin;
+          const totalNet = Math.max(0, totalRaw - (record.undertimeMinutes || 0));
+          
+          return {
+              ...record,
+              totalDailyMinutes: totalNet
+          };
+      });
 
   const handleEditRow = (record: AttendanceRecord) => {
       setEditingId(record.id);
@@ -59,11 +72,13 @@ export const AdminAttendanceInput: React.FC<AdminAttendanceInputProps> = ({
       
       const amMin = calculateMinutes(editData.amIn || '', editData.amOut || '');
       const pmMin = calculateMinutes(editData.pmIn || '', editData.pmOut || '');
-      const total = amMin + pmMin;
+      const totalRaw = amMin + pmMin;
+      const undertime = editData.undertimeMinutes || 0;
+      const totalNet = Math.max(0, totalRaw - undertime);
       
       const updatedRecord = {
           ...editData,
-          totalDailyMinutes: total
+          totalDailyMinutes: totalNet
       } as AttendanceRecord;
 
       await (onSave as any)(updatedRecord);
